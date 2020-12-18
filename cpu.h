@@ -26,13 +26,14 @@ public:
 	void nmi();
 	
 	// operations
-	bool ADC(); bool AND(); bool ASL(); bool BCC();
-	
-	// 8-bit addressing modes
-	bool IMP8(); bool IMM8(); bool ABS8();
+	void ADC(); void ADC8();
+	void AND(); void ASL(); void BCC();
 	
 	// 16-bit addressing modes
-	bool IMP16(); bool IMM16(); bool ABS16();
+	void IMP(); void IMM(); void ABS();
+	
+	// 8-bit addressing modes
+	void IMP8(); void IMM8(); void ABS8();
 	
 private:
 	// ram
@@ -77,38 +78,36 @@ private:
 	// flags
 	union status {
 		struct bits {
-			char carry : 1;
-			char zero : 1;
-			char disable : 1;
-			char decimal : 1;
-			char index_size : 1;
-			char accum_size : 1;
-			char overflow : 1;
-			char negative : 1;
+			char c : 1;
+			char z : 1;
+			char i : 1;
+			char d : 1;
+			char x : 1;
+			char m : 1;
+			char v : 1;
+			char n : 1;
 		};
 		char full;
 	};
 	
-	byte cycles;
+	byte cyclesRemaining;
 	
 	twobyte fetched;
 	twobyte abs_addr;
 	twobyte rel_addr;
 	
-	struct instruction {
+	typedef struct {
 		bool (SNES_CPU::*op)(void) = nullptr;
 		bool (SNES_CPU::*mode)(void) = nullptr;
-		byte cycles = 0;
-	};
+		byte cycleCount();
+	} instruction;
 	
-	struct instruction i = {&SNES_CPU::ADC, &SNES_CPU::IMM8, 2};
-	
-	std::map<byte, struct instruction>* ops;
+	std::map<byte, instruction> ops;
 	
 	using cpu = SNES_CPU;
-	std::map<byte, struct instruction> ops8 {
-		{0x69, {&cpu::ADC, &cpu::IMM8, 2}},
-		{0x6D, {&cpu::ADC, &cpu::ABS8, 4}}
+	std::map<byte, instruction> ops16 {
+		{0x69, {&cpu::ADC, &cpu::IMM, [=](){return 3 - status.bits.m;}}},
+		{0x6D, {&cpu::ADC, &cpu::ABS, 4}}
 	};
 };
 
