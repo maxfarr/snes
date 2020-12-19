@@ -2,12 +2,15 @@
 #define _RAM_H
 
 #include <array>
+#include <string>
 #include "cpu.h"
 
 class SNES_RAM {
 public:
 	byte read8(twobyte addr);
 	twobyte read16(twobyte addr);
+	
+	void readFile(std::string filename);
 private:
 	std::array<byte, 1024 * 128> data;
 };

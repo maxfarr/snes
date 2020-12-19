@@ -18,7 +18,7 @@ class SNES_RAM;
 
 class SNES_CPU {
 public:
-	SNES_CPU(SNES_RAM* r);
+	SNES_CPU(SNES_RAM* r, SNES_RAM* r2);
 	~SNES_CPU();
 
 	// signals
@@ -32,14 +32,18 @@ public:
 	void AND(); void ASL(); void BCC();
 	
 	// 16-bit addressing modes
-	void IMP(); void IMM(); void ABS();
+	void IMP() {return;};
+	void IMM(); void ABS();
 	
 	// 8-bit addressing modes
-	void IMP8(); void IMM8(); void ABS8();
+	void IMM8(); void ABS8();
+	
+	twobyte debugAccum() {return C;};
 	
 private:
-	// ram
-	SNES_RAM* ram;
+	// memory
+	SNES_RAM* ram = nullptr;
+	SNES_RAM* rom = nullptr;
 
 	// accumulator
 	twobyte C;
@@ -95,6 +99,8 @@ private:
 	byte cyclesRemaining;
 	
 	twobyte fetched;
+	byte* fetched_hi = (byte*)&fetched;
+	byte* fetched_lo = fetched_hi + 1;
 	twobyte abs_addr;
 	twobyte rel_addr;
 	
