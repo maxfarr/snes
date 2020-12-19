@@ -6,17 +6,19 @@
 #include <iostream>
 #include <map>
 #include <utility>
+#include <functional>
 
 typedef uint16_t twobyte;
 typedef uint8_t byte;
 
+class SNES_RAM;
 #include "ram.h"
 
 #define getBit(value, k)	((value >> k) & 1)
 
 class SNES_CPU {
 public:
-	SNES_CPU();
+	SNES_CPU(SNES_RAM* r);
 	~SNES_CPU();
 
 	// signals
@@ -37,7 +39,7 @@ public:
 	
 private:
 	// ram
-	SNES_RAM ram;
+	SNES_RAM* ram;
 
 	// accumulator
 	twobyte C;
@@ -76,8 +78,8 @@ private:
 	byte* YL = YH + 1;
 	
 	// flags
-	union status {
-		struct bits {
+	union {
+		struct {
 			char c : 1;
 			char z : 1;
 			char i : 1;
@@ -86,9 +88,9 @@ private:
 			char m : 1;
 			char v : 1;
 			char n : 1;
-		};
+		} bits;
 		char full;
-	};
+	} status;
 	
 	byte cyclesRemaining;
 	
@@ -97,17 +99,17 @@ private:
 	twobyte rel_addr;
 	
 	typedef struct {
-		bool (SNES_CPU::*op)(void) = nullptr;
-		bool (SNES_CPU::*mode)(void) = nullptr;
-		byte cycleCount();
+		void (SNES_CPU::*op)(void) = nullptr;
+		void (SNES_CPU::*mode)(void) = nullptr;
+		std::function<byte()> cycleCount;
 	} instruction;
 	
 	std::map<byte, instruction> ops;
 	
 	using cpu = SNES_CPU;
 	std::map<byte, instruction> ops16 {
-		{0x69, {&cpu::ADC, &cpu::IMM, [=](){return 3 - status.bits.m;}}},
-		{0x6D, {&cpu::ADC, &cpu::ABS, 4}}
+		{0x69, {&cpu::ADC, &cpu::IMM, [=]() -> byte {return (byte)(3 - status.bits.m);}}},
+		{0x6D, {&cpu::ADC, &cpu::ABS, [=]() -> byte {return (byte)(4);}}} // this one is not correct yet
 	};
 };
 
