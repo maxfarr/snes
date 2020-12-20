@@ -39,6 +39,7 @@ public:
 	void IMM8(); void ABS8();
 	
 	twobyte debugAccum() {return C;};
+	byte getCycles() {return cyclesRemaining;};
 	
 private:
 	// memory
@@ -84,14 +85,14 @@ private:
 	// flags
 	union {
 		struct {
-			char c : 1;
-			char z : 1;
-			char i : 1;
-			char d : 1;
-			char x : 1;
-			char m : 1;
-			char v : 1;
 			char n : 1;
+			char v : 1;
+			char m : 1;
+			char x : 1;
+			char d : 1;
+			char i : 1;
+			char z : 1;
+			char c : 1;
 		} bits;
 		char full;
 	} status;
@@ -115,7 +116,8 @@ private:
 	using cpu = SNES_CPU;
 	std::map<byte, instruction> ops16 {
 		{0x69, {&cpu::ADC, &cpu::IMM, [=]() -> byte {return (byte)(3 - status.bits.m);}}},
-		{0x6D, {&cpu::ADC, &cpu::ABS, [=]() -> byte {return (byte)(4);}}} // this one is not correct yet
+		{0x6D, {&cpu::ADC, &cpu::ABS, [=]() -> byte {return (byte)(4);}}} // wip
+		
 	};
 };
 
