@@ -1,6 +1,8 @@
 #ifndef _CPU_H
 #define _CPU_H
 
+#include "common.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>
@@ -8,17 +10,15 @@
 #include <utility>
 #include <functional>
 
-typedef uint16_t twobyte;
-typedef uint8_t byte;
-
-class SNES_RAM;
+class SNES_MEMORY;
 #include "ram.h"
 
 #define getBit(value, k)	((value >> k) & 1)
+#define DLNONZERO			(*DL != 0x00)
 
 class SNES_CPU {
 public:
-	SNES_CPU(SNES_RAM* r, SNES_RAM* r2);
+	SNES_CPU(SNES_MEMORY* m) : mem(m), ops(ops16), PC(0x8000) {status.full = 0x00;}
 	~SNES_CPU();
 
 	// signals
@@ -27,83 +27,87 @@ public:
 	void irq();
 	void nmi();
 	
+	twobyte debugAccum() {return C;};
+	void debugPrint();
+	void debugSize() {std::cout << "size of instruction: " << sizeof(instruction) << std::endl;};
+	byte getCycles() {return cyclesRemaining;};
+	
+private:
 	// operations
 	void ADC(); void ADC8();
 	void AND(); void ASL(); void BCC();
 	
-	// 16-bit addressing modes
 	void IMP() {return;};
-	void IMM(); void ABS();
+	
+	// 16-bit addressing modes
+	void IMM();
+	void ABS(); void ABSL();
+	void DP(); void DPI(); void DPIL();
 	
 	// 8-bit addressing modes
-	void IMM8(); void ABS8();
-	
-	twobyte debugAccum() {return C;};
-	byte getCycles() {return cyclesRemaining;};
-	
-private:
+	void IMM8();
+	void ABS8(); void ABSL8();
+	void DP8(); void DPI8(); void DPIL8();
+
 	// memory
-	SNES_RAM* ram = nullptr;
-	SNES_RAM* rom = nullptr;
+	SNES_MEMORY* mem;
 
 	// accumulator
-	twobyte C;
+	twobyte C = 0x0000;
 	byte* B = (byte*)&C;
 	byte* A = B + 1;
 	
 	// data bank
-	byte DBR;
+	byte DBR = 0x00;
 	
-	// direct
-	twobyte D;
+	// direct page
+	twobyte D = 0x0000;
 	byte* DH = (byte*)&D;
 	byte* DL = DH + 1;
 	
 	// program bank
-	byte K;
+	byte K = 0x00;
 	
 	// program counter
-	twobyte PC;
+	twobyte PC = 0x0000;
 	byte* PCH = (byte*)&PC;
 	byte* PCL = PCH + 1;
 	
 	// stack pointer
-	twobyte S;
+	twobyte S = 0x0000;
 	byte* SH = (byte*)&S;
 	byte* SL = SH + 1;
 	
 	// X
-	twobyte X;
+	twobyte X = 0x0000;
 	byte* XH = (byte*)&X;
 	byte* XL = XH + 1;
 	
 	// Y
-	twobyte Y;
+	twobyte Y = 0x0000;
 	byte* YH = (byte*)&Y;
 	byte* YL = YH + 1;
 	
 	// flags
 	union {
 		struct {
-			char n : 1;
-			char v : 1;
-			char m : 1;
-			char x : 1;
-			char d : 1;
-			char i : 1;
-			char z : 1;
 			char c : 1;
+			char z : 1;
+			char i : 1;
+			char d : 1;
+			char x : 1;
+			char m : 1;
+			char v : 1;
+			char n : 1;
 		} bits;
 		char full;
 	} status;
 	
-	byte cyclesRemaining;
+	byte cyclesRemaining = 0;
 	
-	twobyte fetched;
+	twobyte fetched = 0x0000;
 	byte* fetched_hi = (byte*)&fetched;
 	byte* fetched_lo = fetched_hi + 1;
-	twobyte abs_addr;
-	twobyte rel_addr;
 	
 	typedef struct {
 		void (SNES_CPU::*op)(void) = nullptr;
@@ -111,14 +115,15 @@ private:
 		std::function<byte()> cycleCount;
 	} instruction;
 	
-	std::map<byte, instruction> ops;
-	
 	using cpu = SNES_CPU;
 	std::map<byte, instruction> ops16 {
-		{0x69, {&cpu::ADC, &cpu::IMM, [=]() -> byte {return (byte)(3 - status.bits.m);}}},
-		{0x6D, {&cpu::ADC, &cpu::ABS, [=]() -> byte {return (byte)(4);}}} // wip
-		
+		{0x65, {&cpu::ADC, &cpu::DP, [=]() -> byte {return 4 + DLNONZERO;}}},
+		{0x69, {&cpu::ADC, &cpu::IMM, [=]() -> byte {return 3;}}},
+		{0x6D, {&cpu::ADC, &cpu::ABS, [=]() -> byte {return 5;}}},
+		{0x6F, {&cpu::ADC, &cpu::ABSL, [=]() -> byte {return 6;}}}
 	};
+	
+	std::map<byte, instruction> ops;
 };
 
 #endif

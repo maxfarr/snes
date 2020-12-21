@@ -1,22 +1,113 @@
+#include "common.h"
+
 #include "ram.h"
+#include "cpu.h"
 #include <iostream>
 #include <fstream>
 
-byte SNES_RAM::read8(twobyte i) {
-	if(i >= 0x0000 && i <= 0x07FF) {
-		return data[i];
-	}
+byte SNES_MEMORY::read8(byte bank, twobyte addr) {
+	if(addr <= 0x1FFF && (bank <= 0x3F || bank >= 0x80)) bank = 0x7E;
 	
-	return 0x00;
+	return data[addr + (bank << 16)];
 }
 
-void SNES_RAM::readFile(std::string filename) {
+twobyte SNES_MEMORY::read16(byte bank, twobyte addr) {
+	if(addr <= 0x1FFF && bank <= 0x3F) bank = 0x7E;
+	
+	threebyte complete_addr = addr + (bank << 16);
+	
+	byte low = data[complete_addr++];
+	return low + (data[complete_addr] << 8);
+}
+
+threebyte SNES_MEMORY::read24(byte bank, twobyte addr) {
+	if(addr <= 0x1FFF && bank <= 0x3F) bank = 0x7E;
+	
+	threebyte complete_addr = addr + (bank << 16);
+	
+	threebyte value = (threebyte)data[complete_addr++];
+	value |= (data[complete_addr++] << 8);
+	return value |= (data[complete_addr] << 16);
+}
+
+byte SNES_MEMORY::readROM8(byte& K, twobyte& PC) {
+	threebyte complete_addr = PC + (K << 16);
+	
+	byte value = data[complete_addr];
+	advancePC(K, PC);
+	return value;
+}
+
+twobyte SNES_MEMORY::readROM16(byte& K, twobyte& PC) {
+	threebyte complete_addr = PC + (K << 16);
+	
+	twobyte value = (twobyte)data[complete_addr++];
+	if(advancePC(K, PC))
+		complete_addr = PC + (K << 16);
+	value |= (data[complete_addr] << 8);
+	advancePC(K, PC);
+	return value;
+}
+
+threebyte SNES_MEMORY::readROM24(byte& K, twobyte& PC) {
+	threebyte complete_addr = PC + (K << 16);
+	
+	threebyte value = (threebyte)data[complete_addr++];
+	if(advancePC(K, PC))
+		complete_addr = PC + (K << 16);
+	value |= (data[complete_addr++] << 8);
+	if(advancePC(K, PC))
+		complete_addr = PC + (K << 16);
+	value |= (data[complete_addr] << 16);
+	advancePC(K, PC);
+	return value;
+}
+
+void SNES_MEMORY::write8(byte bank, twobyte addr, byte entry) {
+	if(addr <= 0x1FFF && bank <= 0x3F) bank = 0x7E;
+	
+	threebyte complete_addr = addr + (bank << 16);
+	
+	if(complete_addr >= 0x7E0000 && complete_addr <= 0x7FFFF) {
+		data[complete_addr] = entry;
+	}
+	
+	// throw an error
+}
+
+void SNES_MEMORY::write16(byte bank, twobyte addr, twobyte entry) {
+	if(addr <= 0x1FFF && bank <= 0x3F) bank = 0x7E;
+	
+	threebyte complete_addr = addr + (bank << 16);
+	
+	if(complete_addr >= 0x7E0000 && complete_addr <= 0x7FFFF) {
+		data[complete_addr++] = (byte)(entry & 0x00FF);
+		data[complete_addr] = (byte)((entry & 0xFF00) >> 8);
+	}
+	
+	// throw an error
+}
+
+bool SNES_MEMORY::advancePC(byte& K, twobyte& PC) {
+	bool pc_high_bit = getBit(PC, 15);
+	PC++;
+	
+	// detect overflow, increment bank if needed
+	if(pc_high_bit && !getBit(PC, 15)) {
+		K++;
+		return true;
+	}
+	
+	return false;
+}
+
+void SNES_MEMORY::openROM(std::string filename) {
 	std::ifstream f (filename);
 	char c;
-	unsigned int i = 0;
+	threebyte addr = 0x008000;
 	while(f.get(c)) {
-		data[i++] = c;
-		std::cout << c;
+		data[addr++] = c;
+		// detect overflow, jump to 0x8000 if needed
+		if(!(addr & 0xFFFF)) addr |= 0x8000;
 	}
-	std::cout << std::endl;
 }
