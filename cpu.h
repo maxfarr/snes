@@ -34,32 +34,87 @@ private:
 	void setM(); void clearM();
 	void setI(); void clearI();
 
+	//
 	// operations
+	//
+	
 	void ADC16(); void ADC8();
 	std::function<void()> ADC = bind_fn(ADC16);
 	
-	void AND(); void ASL(); void BCC();
+	void AND();
 	
+	void ASL(); void BCC();
+	
+	//
 	// addressing modes
-	void IMP() {return;};
+	//
 	
+	// implied
+	void IMP_FN() {return;};
+	std::function<void()> IMP = bind_fn(IMP_FN);
+	
+	// immediate
 	void IMM16(); void IMM8();
 	std::function<void()> IMM = bind_fn(IMM16);
 	
+	// direct page
+	void DP16(); void DP8();
+	std::function<void()> DP = bind_fn(DP16);
+	
+	void DPX16(); void DPX8();
+	std::function<void()> DPX = bind_fn(DPX16);
+	
+	void DPY16(); void DPY8();
+	std::function<void()> DPY = bind_fn(DPY16);
+	
+	// indirect
+	void DPI16(); void DPI8();
+	std::function<void()> DPI = bind_fn(DPI16);
+	
+	void DPIL16(); void DPIL8();
+	std::function<void()> DPIL = bind_fn(DPIL16);
+	
+	void DPIX16(); void DPIX8();
+	std::function<void()> DPIX = bind_fn(DPIX16);
+	
+	void DPIY16(); void DPIY8();
+	std::function<void()> DPIY = bind_fn(DPIY16);
+	
+	void DPILX16(); void DPILX8();
+	std::function<void()> DPILX = bind_fn(DPILX16);
+	
+	void DPILY16(); void DPILY8();
+	std::function<void()> DPILY = bind_fn(DPILY16);
+	
+	// absolute
 	void ABS16(); void ABS8();
 	std::function<void()> ABS = bind_fn(ABS16);
 	
 	void ABSL16();  void ABSL8();
 	std::function<void()> ABSL = bind_fn(ABSL16);
 	
-	void DP16(); void DP8();
-	std::function<void()> DP = bind_fn(DP16);
+	void ABSX16(); void ABSX8();
+	std::function<void()> ABSX = bind_fn(ABS16);
 	
-	void DPI(); void DPIL();
+	void ABSY16(); void ABSY8();
+	std::function<void()> ABSY = bind_fn(ABS16);
 	
+	void ABSLX16();  void ABSLX8();
+	std::function<void()> ABSLX = bind_fn(ABSL16);
 	
-	void DPI8(); void DPIL8();
-
+	void ABSLY16();  void ABSLY8();
+	std::function<void()> ABSLY = bind_fn(ABSL16);
+	
+	// stack relative
+	void SR16(); void SR8();
+	std::function<void()> SR = bind_fn(SR16);
+	
+	void SRIX16(); void SRIX8();
+	std::function<void()> SRIX = bind_fn(SRIX16);
+	
+	void SRIY16(); void SRIY8();
+	std::function<void()> SRIY = bind_fn(SRIY16);
+	
 	// memory
 	SNES_MEMORY* mem;
 
@@ -129,10 +184,21 @@ private:
 	} instruction;
 	
 	std::map<byte, instruction> ops {
-		{0x65, {&ADC, &DP, [=]() -> byte {return 4 + DLNONZERO;}}},
-		{0x69, {&ADC, &IMM, [=]() -> byte {return 3;}}},
-		{0x6D, {&ADC, &ABS, [=]() -> byte {return 5;}}},
-		{0x6F, {&ADC, &ABSL, [=]() -> byte {return 6;}}}
+		{0x61, {&ADC, &DPIX, [=]() -> byte {return 7 - status.bits.m + DLNONZERO;}}},
+		{0x63, {&ADC, &SR, [=]() -> byte {return 5 - status.bits.m;}}},
+		{0x65, {&ADC, &DP, [=]() -> byte {return 4 - status.bits.m + DLNONZERO;}}},
+		{0x67, {&ADC, &DPIL, [=]() -> byte {return 7 - status.bits.m + DLNONZERO;}}},
+		{0x69, {&ADC, &IMM, [=]() -> byte {return 3 - status.bits.m;}}},
+		{0x6D, {&ADC, &ABS, [=]() -> byte {return 5 - status.bits.m;}}},
+		{0x6F, {&ADC, &ABSL, [=]() -> byte {return 6 - status.bits.m;}}},
+		{0x71, {&ADC, &DPIY, [=]() -> byte {return 6 - status.bits.m + DLNONZERO;}}},
+		{0x72, {&ADC, &DPI, [=]() -> byte {return 6 - status.bits.m + DLNONZERO;}}},
+		{0x73, {&ADC, &SRIY, [=]() -> byte {return 8 - status.bits.m;}}},
+		{0x75, {&ADC, &DPX, [=]() -> byte {return 5 - status.bits.m + DLNONZERO;}}},
+		{0x77, {&ADC, &DPILY, [=]() -> byte {return 7 - status.bits.m + DLNONZERO;}}},
+		{0x79, {&ADC, &ABSY, [=]() -> byte {return 5 - status.bits.m;}}},
+		{0x7D, {&ADC, &ABSX, [=]() -> byte {return 5 - status.bits.m;}}},
+		{0x7F, {&ADC, &ABSLX, [=]() -> byte {return 6 - status.bits.m;}}}
 	};
 };
 
