@@ -31,15 +31,11 @@ public:
 	byte getCycles() {return cyclesRemaining;};
 	
 private:
-	void setM(); void clearM();
-	void setI(); void clearI();
-
 	//
 	// operations
 	//
 	
-	void ADC16(); void ADC8();
-	std::function<void()> ADC = bind_fn(ADC16);
+	void ADC();
 	
 	void AND();
 	
@@ -50,70 +46,38 @@ private:
 	//
 	
 	// implied
-	void IMP_FN() {return;};
-	std::function<void()> IMP = bind_fn(IMP_FN);
+	void IMP() {return;};
 	
 	// immediate
-	void IMM16(); void IMM8();
-	std::function<void()> IMM = bind_fn(IMM16);
+	void IMM();
 	
 	// direct page
-	void DP16(); void DP8();
-	std::function<void()> DP = bind_fn(DP16);
+	void DP();
 	
-	void DPX16(); void DPX8();
-	std::function<void()> DPX = bind_fn(DPX16);
-	
-	void DPY16(); void DPY8();
-	std::function<void()> DPY = bind_fn(DPY16);
+	void DPX(); void DPY();
 	
 	// indirect
-	void DPI16(); void DPI8();
-	std::function<void()> DPI = bind_fn(DPI16);
+	void DPI();
 	
-	void DPIL16(); void DPIL8();
-	std::function<void()> DPIL = bind_fn(DPIL16);
+	void DPIL();
 	
-	void DPIX16(); void DPIX8();
-	std::function<void()> DPIX = bind_fn(DPIX16);
+	void DPIX(); void DPIY();
 	
-	void DPIY16(); void DPIY8();
-	std::function<void()> DPIY = bind_fn(DPIY16);
-	
-	void DPILX16(); void DPILX8();
-	std::function<void()> DPILX = bind_fn(DPILX16);
-	
-	void DPILY16(); void DPILY8();
-	std::function<void()> DPILY = bind_fn(DPILY16);
+	void DPILX(); void DPILY();
 	
 	// absolute
-	void ABS16(); void ABS8();
-	std::function<void()> ABS = bind_fn(ABS16);
+	void ABS();
 	
-	void ABSL16();  void ABSL8();
-	std::function<void()> ABSL = bind_fn(ABSL16);
+	void ABSL();
 	
-	void ABSX16(); void ABSX8();
-	std::function<void()> ABSX = bind_fn(ABS16);
+	void ABSX(); void ABSY();
 	
-	void ABSY16(); void ABSY8();
-	std::function<void()> ABSY = bind_fn(ABS16);
-	
-	void ABSLX16();  void ABSLX8();
-	std::function<void()> ABSLX = bind_fn(ABSL16);
-	
-	void ABSLY16();  void ABSLY8();
-	std::function<void()> ABSLY = bind_fn(ABSL16);
+	void ABSLX(); void ABSLY();
 	
 	// stack relative
-	void SR16(); void SR8();
-	std::function<void()> SR = bind_fn(SR16);
+	void SR();
 	
-	void SRIX16(); void SRIX8();
-	std::function<void()> SRIX = bind_fn(SRIX16);
-	
-	void SRIY16(); void SRIY8();
-	std::function<void()> SRIY = bind_fn(SRIY16);
+	void SRIX(); void SRIY();
 	
 	// memory
 	SNES_MEMORY* mem;
@@ -178,27 +142,27 @@ private:
 	byte* fetched_lo = fetched_hi + 1;
 	
 	typedef struct {
-		std::function<void()>* op;
-		std::function<void()>* mode;
+		std::function<void()> op;
+		std::function<void()> mode;
 		std::function<byte()> cycleCount;
 	} instruction;
 	
 	std::map<byte, instruction> ops {
-		{0x61, {&ADC, &DPIX, [=]() -> byte {return 7 - status.bits.m + DLNONZERO;}}},
-		{0x63, {&ADC, &SR, [=]() -> byte {return 5 - status.bits.m;}}},
-		{0x65, {&ADC, &DP, [=]() -> byte {return 4 - status.bits.m + DLNONZERO;}}},
-		{0x67, {&ADC, &DPIL, [=]() -> byte {return 7 - status.bits.m + DLNONZERO;}}},
-		{0x69, {&ADC, &IMM, [=]() -> byte {return 3 - status.bits.m;}}},
-		{0x6D, {&ADC, &ABS, [=]() -> byte {return 5 - status.bits.m;}}},
-		{0x6F, {&ADC, &ABSL, [=]() -> byte {return 6 - status.bits.m;}}},
-		{0x71, {&ADC, &DPIY, [=]() -> byte {return 6 - status.bits.m + DLNONZERO;}}},
-		{0x72, {&ADC, &DPI, [=]() -> byte {return 6 - status.bits.m + DLNONZERO;}}},
-		{0x73, {&ADC, &SRIY, [=]() -> byte {return 8 - status.bits.m;}}},
-		{0x75, {&ADC, &DPX, [=]() -> byte {return 5 - status.bits.m + DLNONZERO;}}},
-		{0x77, {&ADC, &DPILY, [=]() -> byte {return 7 - status.bits.m + DLNONZERO;}}},
-		{0x79, {&ADC, &ABSY, [=]() -> byte {return 5 - status.bits.m;}}},
-		{0x7D, {&ADC, &ABSX, [=]() -> byte {return 5 - status.bits.m;}}},
-		{0x7F, {&ADC, &ABSLX, [=]() -> byte {return 6 - status.bits.m;}}}
+		{0x61, {bind_fn(ADC), bind_fn(DPIX), [=]() -> byte {return 7 - status.bits.m + DLNONZERO;}}},
+		{0x63, {bind_fn(ADC), bind_fn(SR), [=]() -> byte {return 5 - status.bits.m;}}},
+		{0x65, {bind_fn(ADC), bind_fn(DP), [=]() -> byte {return 4 - status.bits.m + DLNONZERO;}}},
+		{0x67, {bind_fn(ADC), bind_fn(DPIL), [=]() -> byte {return 7 - status.bits.m + DLNONZERO;}}},
+		{0x69, {bind_fn(ADC), bind_fn(IMM), [=]() -> byte {return 3 - status.bits.m;}}},
+		{0x6D, {bind_fn(ADC), bind_fn(ABS), [=]() -> byte {return 5 - status.bits.m;}}},
+		{0x6F, {bind_fn(ADC), bind_fn(ABSL), [=]() -> byte {return 6 - status.bits.m;}}},
+		{0x71, {bind_fn(ADC), bind_fn(DPIY), [=]() -> byte {return 6 - status.bits.m + DLNONZERO;}}},
+		{0x72, {bind_fn(ADC), bind_fn(DPI), [=]() -> byte {return 6 - status.bits.m + DLNONZERO;}}},
+		{0x73, {bind_fn(ADC), bind_fn(SRIY), [=]() -> byte {return 8 - status.bits.m;}}},
+		{0x75, {bind_fn(ADC), bind_fn(DPX), [=]() -> byte {return 5 - status.bits.m + DLNONZERO;}}},
+		{0x77, {bind_fn(ADC), bind_fn(DPILY), [=]() -> byte {return 7 - status.bits.m + DLNONZERO;}}},
+		{0x79, {bind_fn(ADC), bind_fn(ABSY), [=]() -> byte {return 5 - status.bits.m;}}},
+		{0x7D, {bind_fn(ADC), bind_fn(ABSX), [=]() -> byte {return 5 - status.bits.m;}}},
+		{0x7F, {bind_fn(ADC), bind_fn(ABSLX), [=]() -> byte {return 6 - status.bits.m;}}}
 	};
 };
 
