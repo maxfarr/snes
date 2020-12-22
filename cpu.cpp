@@ -15,8 +15,6 @@ int main() {
 	mem->openROM("testrom_3adc");
 	std::cout << "read file" << std::endl;
 	
-	std::cout << "size of cpu: " << sizeof(SNES_CPU) << std::endl;
-	
 	SNES_CPU* cpu = new SNES_CPU(mem);
 	
 	for(int i = 0; i < 9; i++) {
@@ -24,6 +22,12 @@ int main() {
 	}
 	
 	return 0;
+}
+
+SNES_CPU::SNES_CPU(SNES_MEMORY* m) {
+	mem = m;
+	PC = 0x8000;
+	status.full = 0x00;
 }
 
 SNES_CPU::~SNES_CPU() {
@@ -37,8 +41,8 @@ void SNES_CPU::clock() {
 		
 		cyclesRemaining += (this->ops[opcode].cycleCount)();
 		
-		(this->*ops[opcode].mode)();
-		(this->*ops[opcode].op)();
+		(*(this->ops[opcode]).mode)();
+		(*(this->ops[opcode]).op)();
 		
 #ifdef DEBUG
 		std::cout << "-- executed opcode 0x" << std::hex << (unsigned int)opcode << std::dec << std::endl;
@@ -60,7 +64,7 @@ void SNES_CPU::debugPrint() {
 	std::cout << std::endl << std::endl;
 }
 
-void SNES_CPU::ADC() {
+void SNES_CPU::ADC16() {
 	bool final_c = ((unsigned int)C + (fetched + status.bits.c) > (unsigned int)0xFFFF);
 	bool initial_high_bit = getBit(C, 15);
 	
@@ -88,7 +92,7 @@ void SNES_CPU::ADC8() {
 	status.bits.z = (*A == 0x00);
 }
 
-void SNES_CPU::DP() {
+void SNES_CPU::DP16() {
 	fetched = mem->read16(0x7E, D + mem->readROM8(K, PC));
 }
 
@@ -96,7 +100,7 @@ void SNES_CPU::DP8() {
 	*fetched_lo = mem->read8(0x7E, D + mem->readROM8(K, PC));
 }
 
-void SNES_CPU::ABS() {
+void SNES_CPU::ABS16() {
 	twobyte addr = mem->readROM16(K, PC);
 	fetched = mem->read16(DBR, addr);
 }
@@ -106,7 +110,7 @@ void SNES_CPU::ABS8() {
 	*fetched_lo = mem->read8(DBR, addr);
 }
 
-void SNES_CPU::ABSL() {
+void SNES_CPU::ABSL16() {
 	threebyte addr = mem->readROM24(K, PC);
 	fetched = mem->read16((addr & 0xFF0000) >> 16, addr & 0xFFFF);
 }
@@ -116,10 +120,36 @@ void SNES_CPU::ABSL8() {
 	*fetched_lo = mem->read8((addr & 0xFF0000) >> 16, addr & 0xFFFF);
 }
 
-void SNES_CPU::IMM() {
+void SNES_CPU::IMM16() {
 	fetched = mem->readROM16(K, PC);
 }
 
 void SNES_CPU::IMM8() {
 	*fetched_lo = mem->readROM8(K, PC);
+}
+
+void SNES_CPU::setM() {
+	ADC = bind_fn(ADC8);
+	
+	IMM = bind_fn(IMM8);
+	DP = bind_fn(DP8);
+	ABS = bind_fn(ABS8);
+	ABSL = bind_fn(ABSL8);
+}
+
+void SNES_CPU::clearM() {
+	ADC = bind_fn(ADC16);
+	
+	IMM = bind_fn(IMM16);
+	DP = bind_fn(DP16);
+	ABS = bind_fn(ABS16);
+	ABSL = bind_fn(ABSL16);
+}
+
+void SNES_CPU::setI() {
+	
+}
+
+void SNES_CPU::clearI() {
+	
 }

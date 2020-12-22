@@ -13,12 +13,11 @@
 class SNES_MEMORY;
 #include "ram.h"
 
-#define getBit(value, k)	((value >> k) & 1)
 #define DLNONZERO			(*DL != 0x00)
 
 class SNES_CPU {
 public:
-	SNES_CPU(SNES_MEMORY* m) : mem(m), PC(0x8000), ops(ops16) {status.full = 0x00;}
+	SNES_CPU(SNES_MEMORY* m);
 	~SNES_CPU();
 
 	// signals
@@ -32,21 +31,34 @@ public:
 	byte getCycles() {return cyclesRemaining;};
 	
 private:
+	void setM(); void clearM();
+	void setI(); void clearI();
+
 	// operations
-	void ADC(); void ADC8();
+	void ADC16(); void ADC8();
+	std::function<void()> ADC = bind_fn(ADC16);
+	
 	void AND(); void ASL(); void BCC();
 	
+	// addressing modes
 	void IMP() {return;};
 	
-	// 16-bit addressing modes
-	void IMM();
-	void ABS(); void ABSL();
-	void DP(); void DPI(); void DPIL();
+	void IMM16(); void IMM8();
+	std::function<void()> IMM = bind_fn(IMM16);
 	
-	// 8-bit addressing modes
-	void IMM8();
-	void ABS8(); void ABSL8();
-	void DP8(); void DPI8(); void DPIL8();
+	void ABS16(); void ABS8();
+	std::function<void()> ABS = bind_fn(ABS16);
+	
+	void ABSL16();  void ABSL8();
+	std::function<void()> ABSL = bind_fn(ABSL16);
+	
+	void DP16(); void DP8();
+	std::function<void()> DP = bind_fn(DP16);
+	
+	void DPI(); void DPIL();
+	
+	
+	void DPI8(); void DPIL8();
 
 	// memory
 	SNES_MEMORY* mem;
@@ -102,6 +114,8 @@ private:
 		char full;
 	} status;
 	
+	bool e;
+	
 	byte cyclesRemaining = 0;
 	
 	twobyte fetched = 0x0000;
@@ -109,20 +123,17 @@ private:
 	byte* fetched_lo = fetched_hi + 1;
 	
 	typedef struct {
-		void (SNES_CPU::*op)(void) = nullptr;
-		void (SNES_CPU::*mode)(void) = nullptr;
+		std::function<void()>* op;
+		std::function<void()>* mode;
 		std::function<byte()> cycleCount;
 	} instruction;
 	
-	using cpu = SNES_CPU;
-	std::map<byte, instruction> ops16 {
-		{0x65, {&cpu::ADC, &cpu::DP, [=]() -> byte {return 4 + DLNONZERO;}}},
-		{0x69, {&cpu::ADC, &cpu::IMM, [=]() -> byte {return 3;}}},
-		{0x6D, {&cpu::ADC, &cpu::ABS, [=]() -> byte {return 5;}}},
-		{0x6F, {&cpu::ADC, &cpu::ABSL, [=]() -> byte {return 6;}}}
+	std::map<byte, instruction> ops {
+		{0x65, {&ADC, &DP, [=]() -> byte {return 4 + DLNONZERO;}}},
+		{0x69, {&ADC, &IMM, [=]() -> byte {return 3;}}},
+		{0x6D, {&ADC, &ABS, [=]() -> byte {return 5;}}},
+		{0x6F, {&ADC, &ABSL, [=]() -> byte {return 6;}}}
 	};
-	
-	std::map<byte, instruction> ops;
 };
 
 #endif
