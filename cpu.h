@@ -18,7 +18,7 @@ class SNES_MEMORY;
 
 class SNES_CPU {
 public:
-	SNES_CPU(SNES_MEMORY* m) : mem(m), ops(ops16), PC(0x8000) {status.full = 0x00;}
+	SNES_CPU(SNES_MEMORY* m) : mem(m), PC(0x8000), ops(ops16) {status.full = 0x00;}
 	~SNES_CPU();
 
 	// signals
@@ -29,7 +29,6 @@ public:
 	
 	twobyte debugAccum() {return C;};
 	void debugPrint();
-	void debugSize() {std::cout << "size of instruction: " << sizeof(instruction) << std::endl;};
 	byte getCycles() {return cyclesRemaining;};
 	
 private:
