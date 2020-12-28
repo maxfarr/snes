@@ -231,7 +231,38 @@ private:
 		{0x18, {bind_fn(CLC), bind_fn(IMP), []() -> byte {return 2;}}},
 		{0xD8, {bind_fn(CLD), bind_fn(IMP), []() -> byte {return 2;}}},
 		{0x58, {bind_fn(CLI), bind_fn(IMP), []() -> byte {return 2;}}},
-		{0xB8, {bind_fn(CLV), bind_fn(IMP), []() -> byte {return 2;}}}
+		{0xB8, {bind_fn(CLV), bind_fn(IMP), []() -> byte {return 2;}}},
+		// cmp
+		{0xC1, {bind_fn(CMP), bind_fn(DPXI), [=]() -> byte {return 7 - status.bits.m + DLNONZERO}}},
+		{0xC3, {bind_fn(CMP), bind_fn(SR), [=]() -> byte {return 5 - status.bits.m}}},
+		{0xC5, {bind_fn(CMP), bind_fn(DP), [=]() -> byte {return 4 - status.bits.m + DLNONZERO}}},
+		{0xC7, {bind_fn(CMP), bind_fn(DPIL), [=]() -> byte {return 7 - status.bits.m + DLNONZERO}}},
+		{0xC9, {bind_fn(CMP), bind_fn(IMM_M), [=]() -> byte {return 3 - status.bits.m}}},
+		{0xCD, {bind_fn(CMP), bind_fn(ABS), [=]() -> byte {return 5 - status.bits.m}}},
+		{0xCF, {bind_fn(CMP), bind_fn(ABSL), [=]() -> byte {return 6 - status.bits.m}}},
+		{0xD1, {bind_fn(CMP), bind_fn(DPIY), [=]() -> byte {return 6 - status.bits.m + DLNONZERO + iBoundary}}},
+		{0xD2, {bind_fn(CMP), bind_fn(DPI), [=]() -> byte {return 6 - status.bits.m + DLNONZERO}}},
+		{0xD3, {bind_fn(CMP), bind_fn(SRIY), [=]() -> byte {return 8 - status.bits.m}}},
+		{0xD5, {bind_fn(CMP), bind_fn(DPX), [=]() -> byte {return 5 - status.bits.m + DLNONZERO}}},
+		{0xD7, {bind_fn(CMP), bind_fn(DPILY), [=]() -> byte {return 7 - status.bits.m + DLNONZERO}}},
+		{0xD9, {bind_fn(CMP), bind_fn(ABSY), [=]() -> byte {return 5 - status.bits.m + iBoundary}}},
+		{0xDD, {bind_fn(CMP), bind_fn(ABSX), [=]() -> byte {return 5 - status.bits.m + iBoundary}}},
+		{0xDF, {bind_fn(CMP), bind_fn(ABSLX), [=]() -> byte {return 6 - status.bits.m}}},
+		// cpx, cpy
+		{0xE0, {bind_fn(CPX), bind_fn(IMM_X), [=]() -> byte {return 3 - status.bits.x;}}},
+		{0xE4, {bind_fn(CPX), bind_fn(DP), [=]() -> byte {return 4 - status.bits.x + DLNONZERO;}}},
+		{0xEC, {bind_fn(CPX), bind_fn(ABS), [=]() -> byte {return 5 - status.bits.x;}}},
+		{0xC0, {bind_fn(CPY), bind_fn(IMM_X), [=]() -> byte {return 3 - status.bits.x;}}},
+		{0xC4, {bind_fn(CPY), bind_fn(DP), [=]() -> byte {return 4 - status.bits.x + DLNONZERO;}}},
+		{0xCC, {bind_fn(CPY), bind_fn(ABS), [=]() -> byte {return 5 - status.bits.x;}}},
+		// dec, dex, dey
+		{0x3A, {bind_fn(DECA), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0xC6, {bind_fn(DEC), bind_fn(DP), [=]() -> byte {return 5 + DLNONZERO + MZERO;}}},
+		{0xCE, {bind_fn(DEC), bind_fn(ABS), [=]() -> byte {return 6 + MZERO;}}},
+		{0xD6, {bind_fn(DEC), bind_fn(DPX), [=]() -> byte {return 6 + DLNONZERO + MZERO;}}},
+		{0xDE, {bind_fn(DEC), bind_fn(ABSX), [=]() -> byte {return 7 + MZERO;}}},
+		{0xCA, {bind_fn(DEX), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x88, {bind_fn(DEY), bind_fn(IMP), []() -> byte {return 2;}}}
 	};
 };
 
