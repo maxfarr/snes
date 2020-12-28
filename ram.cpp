@@ -101,6 +101,14 @@ bool SNES_MEMORY::advancePC(byte& K, twobyte& PC) {
 	return false;
 }
 
+void SNES_MEMORY::branchPC(byte& K, twobyte& PC, byte n) {
+	threebyte PC_full = PC + (K << 16);
+	PC_full += (signed char)n;
+	
+	K = (PC_full & 0xFF0000) >> 16;
+	PC = PC_full & 0xFFFF;
+}
+
 void SNES_MEMORY::openROM(std::string filename) {
 	std::ifstream f (filename);
 	char c;

@@ -20,6 +20,7 @@ public:
 	threebyte readROM24(byte& K, twobyte& PC);
 	
 	bool advancePC(byte& K, twobyte& PC);
+	void branchPC(byte& K, twobyte& PC, byte n);
 	
 	void write8(byte bank, twobyte addr, byte entry);
 	void write16(byte bank, twobyte addr, twobyte entry);
