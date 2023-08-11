@@ -6,3 +6,5 @@
 typedef uint32_t threebyte;
 typedef uint16_t twobyte;
 typedef uint8_t byte;
+typedef int16_t signedtwobyte;
+typedef int8_t signedbyte;
