@@ -3,119 +3,203 @@
 #include "ram.h"
 #include "cpu.h"
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 
+#define HEX_BYTE_PRINT(x) std::setw(2) << std::setfill('0') << (unsigned int)(0xFF & x)
+
+void SNES_MEMORY::apply_mirrors(byte& bank, twobyte addr) {
+	// mirror low RAM
+	if(addr <= 0x1FFF && (bank <= 0x3F || (bank >= 0x80 && bank <= 0xBF))) bank = 0x7E;
+	// mirror ROM
+	if(addr >= 0x8000 && bank <= 0x7D) bank += 0x80;
+}
+
+// todo: rename "addr" either in these functions or down in the readROM functions
 byte SNES_MEMORY::read8(byte bank, twobyte addr) {
-	if(addr <= 0x1FFF && (bank <= 0x3F || bank >= 0x80)) bank = 0x7E;
+	apply_mirrors(bank, addr);
 	
-	return data[addr + (bank << 16)];
+	byte value = data[addr + (bank << 16)];
+#ifdef DEBUG_MEMORY
+	std::cout << "read8: read twobyte $" << std::hex << HEX_BYTE_PRINT(value) <<
+	" at 0x" << (addr + (bank << 16)) << std::dec << std::endl;
+#endif
+	return value;
+}
+
+byte SNES_MEMORY::read8(threebyte addr) {
+	return read8((addr & 0xFF0000) >> 16, addr & 0xFFFF);
 }
 
 twobyte SNES_MEMORY::read16(byte bank, twobyte addr) {
-	if(addr <= 0x1FFF && bank <= 0x3F) bank = 0x7E;
+	apply_mirrors(bank, addr);
 	
-	threebyte complete_addr = addr + (bank << 16);
-	
-	byte low = data[complete_addr++];
-	return low + (data[complete_addr] << 8);
+	threebyte full_addr = addr + (bank << 16);
+
+	twobyte value = (twobyte)data[full_addr] | (data[full_addr + 1] << 8);
+#ifdef DEBUG_MEMORY
+	std::cout << "read16: read twobyte $" << std::hex << value <<
+	" at 0x" << full_addr << std::dec << std::endl;
+#endif
+	return value;
+}
+
+twobyte SNES_MEMORY::read16(threebyte addr) {
+	return read16((addr & 0xFF0000) >> 16, addr & 0xFFFF);
 }
 
 threebyte SNES_MEMORY::read24(byte bank, twobyte addr) {
-	if(addr <= 0x1FFF && bank <= 0x3F) bank = 0x7E;
-	
-	threebyte complete_addr = addr + (bank << 16);
-	
-	threebyte value = (threebyte)data[complete_addr++];
-	value |= (data[complete_addr++] << 8);
-	return value |= (data[complete_addr] << 16);
-}
+	apply_mirrors(bank, addr);
 
-byte SNES_MEMORY::readROM8(byte& K, twobyte& PC) {
-	threebyte complete_addr = PC + (K << 16);
+	threebyte full_addr = addr + (bank << 16);
 	
-	byte value = data[complete_addr];
-	advancePC(K, PC);
+	threebyte value = (threebyte)data[full_addr];
+	value |= (data[full_addr + 1] << 8);
+	value |= (data[full_addr + 2] << 16);
+#ifdef DEBUG_MEMORY
+	std::cout << "read24: read threebyte $" << std::hex << value <<
+	" at 0x" << full_addr << std::dec << std::endl;
+#endif
 	return value;
 }
 
-twobyte SNES_MEMORY::readROM16(byte& K, twobyte& PC) {
-	threebyte complete_addr = PC + (K << 16);
-	
-	twobyte value = (twobyte)data[complete_addr++];
-	if(advancePC(K, PC))
-		complete_addr = PC + (K << 16);
-	value |= (data[complete_addr] << 8);
-	advancePC(K, PC);
+threebyte SNES_MEMORY::read24(threebyte addr) {
+	return read24((addr & 0xFF0000) >> 16, addr & 0xFFFF);
+}
+
+byte SNES_MEMORY::read8_bank0(twobyte addr) {
+	byte bank = 0x00;
+	apply_mirrors(bank, addr);
+
+	byte value = data[addr + (bank << 16)];
+#ifdef DEBUG_MEMORY
+	std::cout << "read8_bank0: read byte $" << std::hex << HEX_BYTE_PRINT(value) <<
+	" at 0x00" << addr << std::dec << std::endl;
+#endif
 	return value;
 }
 
-threebyte SNES_MEMORY::readROM24(byte& K, twobyte& PC) {
-	threebyte complete_addr = PC + (K << 16);
+twobyte SNES_MEMORY::read16_bank0(twobyte addr) {
+	byte bank = 0x00;
+	apply_mirrors(bank, addr);
 	
-	threebyte value = (threebyte)data[complete_addr++];
-	if(advancePC(K, PC))
-		complete_addr = PC + (K << 16);
-	value |= (data[complete_addr++] << 8);
-	if(advancePC(K, PC))
-		complete_addr = PC + (K << 16);
-	value |= (data[complete_addr] << 16);
-	advancePC(K, PC);
+	threebyte lo_addr = addr + (bank << 16);
+	threebyte hi_addr = (addr + 1) + (bank << 16);
+	
+	twobyte value = (twobyte)data[lo_addr] | (data[hi_addr] << 8);
+#ifdef DEBUG_MEMORY
+	std::cout << "read16_bank0: read twobyte $" << std::hex << value <<
+	" at 0x00" << addr << std::dec << std::endl;
+#endif
+	return value;
+}
+
+threebyte SNES_MEMORY::read24_bank0(twobyte addr) {
+	byte bank = 0x00;
+	apply_mirrors(bank, addr);
+
+	threebyte lo_addr = addr + (bank << 16);
+	threebyte mid_addr = (addr + 1) + (bank << 16);
+	threebyte hi_addr = (addr + 2) + (bank << 16);
+	
+	threebyte value = (threebyte)data[lo_addr];
+	value |= (data[mid_addr] << 8);
+	value |= (data[hi_addr] << 16);
+#ifdef DEBUG_MEMORY
+	std::cout << "read24_bank0: read threebyte $" << std::hex << value <<
+	" at 0x00" << addr << std::dec << std::endl;
+#endif
+	return value;
+}
+
+byte SNES_MEMORY::readROM8(byte K, twobyte& PC) {
+	apply_mirrors(K, PC);
+	threebyte addr = PC | (K << 16);
+	
+	byte value = data[addr];
+#ifdef DEBUG_MEMORY
+	std::cout << "readROM8: read byte $" << std::hex << HEX_BYTE_PRINT(value) <<
+	" at 0x" << addr << std::dec << std::endl;
+#endif
+	PC++;
+	return value;
+}
+
+twobyte SNES_MEMORY::readROM16(byte K, twobyte& PC) {
+	apply_mirrors(K, PC);
+	threebyte addr = PC | (K << 16);
+	
+	twobyte value = (twobyte)data[addr];
+	PC++;
+	addr = PC | (K << 16);
+	value |= (data[addr] << 8);
+#ifdef DEBUG_MEMORY
+	std::cout << "readROM16: read twobyte $" << std::hex << value <<
+	" at 0x" << addr << std::dec << std::endl;
+#endif
+	PC++;
+	return value;
+}
+
+threebyte SNES_MEMORY::readROM24(byte K, twobyte& PC) {
+	apply_mirrors(K, PC);
+	threebyte addr = PC + (K << 16);
+	
+	threebyte value = (threebyte)data[addr];
+	PC++;
+	addr = PC | (K << 16);
+	value |= (data[addr] << 8);
+	PC++;
+	addr = PC | (K << 16);
+	value |= (data[addr] << 16);
+#ifdef DEBUG_MEMORY
+	std::cout << "readROM24: read threebyte $" << std::hex << value <<
+	" at 0x" << addr << std::dec << std::endl;
+#endif
+	PC++;
 	return value;
 }
 
 void SNES_MEMORY::write8(byte bank, twobyte addr, byte entry) {
-	if(addr <= 0x1FFF && bank <= 0x3F) bank = 0x7E;
-	
+	apply_mirrors(bank, addr);
+
 	threebyte complete_addr = addr + (bank << 16);
 	
-	if(complete_addr >= 0x7E0000 && complete_addr <= 0x7FFFF) {
-		data[complete_addr] = entry;
-	}
-	
-	// throw an error
+	data[complete_addr] = entry;
 }
 
-void SNES_MEMORY::write16(byte bank, twobyte addr, twobyte entry) {
-	if(addr <= 0x1FFF && bank <= 0x3F) bank = 0x7E;
+void SNES_MEMORY::write16(byte bank, twobyte addr, twobyte entry, bool wrap) {
+	apply_mirrors(bank, addr);
 	
 	threebyte complete_addr = addr + (bank << 16);
-	
-	if(complete_addr >= 0x7E0000 && complete_addr <= 0x7FFFF) {
-		data[complete_addr++] = (byte)(entry & 0x00FF);
-		data[complete_addr] = (byte)((entry & 0xFF00) >> 8);
-	}
-	
-	// throw an error
-}
 
-bool SNES_MEMORY::advancePC(byte& K, twobyte& PC) {
-	bool pc_high_bit = getBit(PC, 15);
-	PC++;
-	
-	// detect overflow, increment bank if needed
-	if(pc_high_bit && !getBit(PC, 15)) {
-		K++;
-		return true;
-	}
-	
-	return false;
-}
-
-void SNES_MEMORY::branchPC(byte& K, twobyte& PC, byte n) {
-	threebyte PC_full = PC + (K << 16);
-	PC_full += (signed char)n;
-	
-	K = (PC_full & 0xFF0000) >> 16;
-	PC = PC_full & 0xFFFF;
+	data[complete_addr] = (byte)(entry & 0x00FF);
+	data[complete_addr+1] = (byte)((entry & 0xFF00) >> 8);
 }
 
 void SNES_MEMORY::openROM(std::string filename) {
 	std::ifstream f (filename);
 	char c;
-	threebyte addr = 0x008000;
+	byte bank = 0x80;
+	twobyte addr = 0x8000;
 	while(f.get(c)) {
-		data[addr++] = c;
+		threebyte final_addr = (bank << 16) | addr;
+		data[final_addr] = c;
+#ifdef DEBUG_MEMORY
+		std::cout << "openROM: stored byte $" << std::hex << HEX_BYTE_PRINT(c)
+		<< " at 0x" << final_addr << std::dec << std::endl;
+#endif
 		// detect overflow, jump to 0x8000 if needed
-		if(!(addr & 0xFFFF)) addr |= 0x8000;
+		if(addr == 0xFFFF) {
+			if(bank == 0xFF) {
+				std::cout << "openROM: ran out of memory, exiting" << std::endl;
+				return;
+			}
+
+			addr = 0x8000;
+			bank++;
+		} else {
+			addr++;
+		}
 	}
 }
