@@ -702,24 +702,42 @@ void SNES_CPU::JSL() {
 void SNES_CPU::LDA() {
 	if(status.bits.m) {
 		*A = *fetched_lo;
+
+		status.bits.n = getBit(*fetched_lo, 7);
+		status.bits.z = (*fetched_lo == 0x00);
 	} else {
 		C = fetched;
+
+		status.bits.n = getBit(fetched, 15);
+		status.bits.z = (fetched == 0x0000);
 	}
 }
 
 void SNES_CPU::LDX() {
 	if(status.bits.x) {
 		*XL = *fetched_lo;
+
+		status.bits.n = getBit(*fetched_lo, 7);
+		status.bits.z = (*fetched_lo == 0x00);
 	} else {
 		X = fetched;
+
+		status.bits.n = getBit(fetched, 15);
+		status.bits.z = (fetched == 0x0000);
 	}
 }
 
 void SNES_CPU::LDY() {
 	if(status.bits.x) {
 		*YL = *fetched_lo;
+
+		status.bits.n = getBit(*fetched_lo, 7);
+		status.bits.z = (*fetched_lo == 0x00);
 	} else {
 		Y = fetched;
+
+		status.bits.n = getBit(fetched, 15);
+		status.bits.z = (fetched == 0x0000);
 	}
 }
 
