@@ -166,8 +166,12 @@ void SNES_MEMORY::write8(byte bank, twobyte addr, byte entry) {
 	apply_mirrors(bank, addr);
 
 	threebyte complete_addr = addr + (bank << 16);
-	
+
 	data[complete_addr] = entry;
+#ifdef DEBUG_MEMORY
+	std::cout << "write8: wrote byte $" << std::hex << HEX_BYTE_PRINT(entry) <<
+	" to 0x" << complete_addr << std::dec << std::endl;
+#endif
 }
 
 void SNES_MEMORY::write16(byte bank, twobyte addr, twobyte entry, bool wrap) {
@@ -177,6 +181,10 @@ void SNES_MEMORY::write16(byte bank, twobyte addr, twobyte entry, bool wrap) {
 
 	data[complete_addr] = (byte)(entry & 0x00FF);
 	data[complete_addr+1] = (byte)((entry & 0xFF00) >> 8);
+#ifdef DEBUG_MEMORY
+	std::cout << "write16: wrote twobyte $" << std::hex << entry <<
+	" to 0x" << complete_addr << std::dec << std::endl;
+#endif
 }
 
 twobyte SNES_MEMORY::brk_vector() {
