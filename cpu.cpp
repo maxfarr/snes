@@ -1057,7 +1057,7 @@ void SNES_CPU::STA() {
 }
 
 void SNES_CPU::STX() {
-	if(status.bits.m) {
+	if(status.bits.x) {
 		mem->write8(*fetched_addr_bank, *fetched_addr_abs, *XL);
 	} else {
 		mem->write16(*fetched_addr_bank, *fetched_addr_abs, X, wrap_writes);
@@ -1065,7 +1065,7 @@ void SNES_CPU::STX() {
 }
 
 void SNES_CPU::STY() {
-	if(status.bits.m) {
+	if(status.bits.x) {
 		mem->write8(*fetched_addr_bank, *fetched_addr_abs, *YL);
 	} else {
 		mem->write16(*fetched_addr_bank, *fetched_addr_abs, Y, wrap_writes);
