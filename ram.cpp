@@ -2,6 +2,8 @@
 
 #include "ram.h"
 #include "cpu.h"
+
+#include <cstring>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -21,7 +23,7 @@ byte SNES_MEMORY::read8(byte bank, twobyte addr) {
 	
 	byte value = data[addr + (bank << 16)];
 #ifdef DEBUG_MEMORY
-	std::cout << "read8: read twobyte $" << std::hex << HEX_BYTE_PRINT(value) <<
+	std::cout << "read8: read byte $" << std::hex << HEX_BYTE_PRINT(value) <<
 	" at 0x" << (addr + (bank << 16)) << std::dec << std::endl;
 #endif
 	return value;
@@ -177,7 +179,21 @@ void SNES_MEMORY::write16(byte bank, twobyte addr, twobyte entry, bool wrap) {
 	data[complete_addr+1] = (byte)((entry & 0xFF00) >> 8);
 }
 
+twobyte SNES_MEMORY::brk_vector() {
+	return read16_bank0(0xFFE6);
+}
+
+twobyte SNES_MEMORY::cop_vector() {
+	return read16_bank0(0xFFE4);
+}
+
+twobyte SNES_MEMORY::reset_vector() {
+	return m_reset_vector;
+}
+
 void SNES_MEMORY::openROM(std::string filename) {
+	std::memset(&data, 0, SNES_RAM_SIZE);
+
 	std::ifstream f (filename);
 	char c;
 	byte bank = 0x80;
@@ -202,4 +218,6 @@ void SNES_MEMORY::openROM(std::string filename) {
 			addr++;
 		}
 	}
+
+	m_reset_vector = read16_bank0(0xFFFC);
 }

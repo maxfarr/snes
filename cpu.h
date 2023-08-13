@@ -16,6 +16,7 @@ class SNES_MEMORY;
 #define DLNONZERO			(*DL != 0x00)
 #define MZERO				(status.bits.m ? 0 : 1)
 #define XZERO				(status.bits.x ? 0 : 1)
+#define EZERO				(e ? 0 : 1)
 
 class SNES_CPU {
 public:
@@ -33,6 +34,9 @@ public:
 	byte getCycles() {return cyclesRemaining;};
 	
 private:
+	// utils
+	void updateRegisterWidths();
+
 	//
 	// operations
 	//
@@ -48,6 +52,8 @@ private:
 	void BVC(); void BVS();
 	
 	void BIT(); void BITIMM();
+
+	void BRK(); void COP();
 	
 	void CLC(); void CLD();
 	void CLI(); void CLV();
@@ -60,6 +66,8 @@ private:
 	void DECA();
 	void DEX();
 	void DEY();
+
+	void EOR();
 
 	void INC();
 	void INCA();
@@ -77,14 +85,66 @@ private:
 
 	void LSR(); void LSRA();
 
+	void MVN();
+	void MVP();
+
+	void NOP() {return;};
+
+	void ORA();
+
+	void PEA();
+	void PEI();
+	void PER();
+
+	void PHA(); void PHB(); void PHD(); void PHK();
+	void PHP(); void PHX(); void PHY();
+
+	void PLA(); void PLB(); void PLD();
+	void PLP(); void PLX(); void PLY();
+
+	void REP();
+
+	void ROL();
+	void ROR();
+
+	void RTI();
+
+	void RTS();
+	void RTL();
+
+	void SBC();
+
 	void SEC();
-	void SED();
 	void SEI();
+	void SED();
+
+	void SEP();
 
 	void STA();
 	void STX();
 	void STY();
 	void STZ();
+
+	void TAX(); void TAY(); void TCD(); void TCS();
+	void TDC(); void TSC(); void TSX(); void TXA();
+	void TXS(); void TXY(); void TYA(); void TYX();
+
+	void TRB();
+	void TSB();
+
+	void WAI();
+
+	void XBA();
+	void XCE();
+
+	//
+	// hardware interrupts
+	//
+
+	void ABORT();
+	void IRQ();
+	void NMI();
+	void RESET();
 	
 	//
 	// addressing modes
@@ -99,7 +159,7 @@ private:
 	void IMM8(); void IMM16();
 	
 	// direct page
-	void DP();
+	void DP(); void DP16();
 	
 	void DPX(); void DPY();
 	
@@ -135,29 +195,37 @@ private:
 
 	// accumulator
 	twobyte C = 0x0000;
-	byte* B = (byte*)&C;
-	byte* A = B + 1;
+	//byte* B = (byte*)&C;
+	//byte* A = B + 1;
+	byte* A = (byte*)&C;
+	byte* B = A + 1;
 	
 	// data bank
 	byte DBR = 0x00;
 	
 	// direct page
 	twobyte D = 0x0000;
-	byte* DH = (byte*)&D;
-	byte* DL = DH + 1;
+	//byte* DH = (byte*)&D;
+	//byte* DL = DH + 1;
+	byte* DL = (byte*)&D;
+	byte* DH = DL + 1;
 	
 	// program bank
 	byte K = 0x00;
 	
 	// program counter
 	twobyte PC = 0x0000;
-	byte* PCH = (byte*)&PC;
-	byte* PCL = PCH + 1;
+	//byte* PCH = (byte*)&PC;
+	//byte* PCL = PCH + 1;
+	byte* PCL = (byte*)&PC;
+	byte* PCH = PCL + 1;
 	
 	// stack pointer
 	twobyte S = 0x0000;
-	byte* SH = (byte*)&S;
-	byte* SL = SH + 1;
+	//byte* SH = (byte*)&S;
+	//byte* SL = SH + 1;
+	byte* SL = (byte*)&S;
+	byte* SH = SL + 1;
 
 	void push_stack_threebyte(threebyte value);
 	void push_stack_twobyte(twobyte value);
@@ -168,13 +236,17 @@ private:
 	
 	// X
 	twobyte X = 0x0000;
-	byte* XH = (byte*)&X;
-	byte* XL = XH + 1;
+	//byte* XH = (byte*)&X;
+	//byte* XL = XH + 1;
+	byte* XL = (byte*)&X;
+	byte* XH = XL + 1;
 	
 	// Y
 	twobyte Y = 0x0000;
-	byte* YH = (byte*)&Y;
-	byte* YL = YH + 1;
+	//byte* YH = (byte*)&Y;
+	//byte* YL = YH + 1;
+	byte* YL = (byte*)&Y;
+	byte* YH = YL + 1;
 	
 	// flags
 	union {
@@ -191,28 +263,21 @@ private:
 		char full;
 	} status;
 
-	#define GET_STATUS_C (getBit(status.full, 0))
-	#define GET_STATUS_Z (getBit(status.full, 1))
-	#define GET_STATUS_I (getBit(status.full, 2))
-	#define GET_STATUS_D (getBit(status.full, 3))
-	#define GET_STATUS_X (getBit(status.full, 4))
-	#define GET_STATUS_M (getBit(status.full, 5))
-	#define GET_STATUS_V (getBit(status.full, 6))
-	#define GET_STATUS_N (getBit(status.full, 7))
-	
 	bool e;
 	
 	byte cyclesRemaining = 0;
 	
 	twobyte fetched = 0x0000;
-	byte* fetched_hi = (byte*)&fetched;
-	byte* fetched_lo = fetched_hi + 1;
+	//byte* fetched_hi = (byte*)&fetched;
+	//byte* fetched_lo = fetched_hi + 1;
+	byte* fetched_lo = (byte*)&fetched;
+	byte* fetched_hi = fetched_lo + 1;
 	
 	threebyte fetched_addr;
-	byte* fetched_addr_bank = (byte*)&fetched_addr;
-	byte* fetched_addr_page = fetched_addr_bank + 1;
-	twobyte* fetched_addr_abs = (twobyte*)fetched_addr_page;
-	byte* fetched_addr_lo = fetched_addr_page + 1;
+	byte* fetched_addr_lo = (byte*)&fetched_addr;
+	byte* fetched_addr_page = fetched_addr_lo + 1;
+	byte* fetched_addr_bank = fetched_addr_page + 1;
+	twobyte* fetched_addr_abs = (twobyte*)&fetched_addr;
 
 	threebyte jump_long_addr;
 	
@@ -289,6 +354,9 @@ private:
 		{0x34, {bind_fn(BIT), bind_fn(DPX), [=]() -> byte {return 5 - status.bits.m + DLNONZERO;}}},
 		{0x3C, {bind_fn(BIT), bind_fn(ABSX), [=]() -> byte {return 5 - status.bits.m + iBoundary;}}},
 		{0x89, {bind_fn(BITIMM), bind_fn(IMM_M), [=]() -> byte {return 3 - status.bits.m;}}},
+		// interrupts
+		{0x00, {bind_fn(BRK), bind_fn(IMP), []() -> byte {return 7;}}},
+		{0x02, {bind_fn(COP), bind_fn(IMP), []() -> byte {return 7;}}},
 		// clear flags
 		{0x18, {bind_fn(CLC), bind_fn(IMP), []() -> byte {return 2;}}},
 		{0xD8, {bind_fn(CLD), bind_fn(IMP), []() -> byte {return 2;}}},
@@ -326,6 +394,22 @@ private:
 		{0xDE, {bind_fn(DEC), bind_fn(ABSX), [=]() -> byte {return 7 + (2 * MZERO);}}},
 		{0xCA, {bind_fn(DEX), bind_fn(IMP), []() -> byte {return 2;}}},
 		{0x88, {bind_fn(DEY), bind_fn(IMP), []() -> byte {return 2;}}},
+		// eor
+		{0x49, {bind_fn(EOR), bind_fn(IMM_M), [=]() -> byte {return 2 + MZERO;}}},
+		{0x4D, {bind_fn(EOR), bind_fn(ABS), [=]() -> byte {return 4 + MZERO;}}},
+		{0x4F, {bind_fn(EOR), bind_fn(ABSL), [=]() -> byte {return 5 + MZERO;}}},
+		{0x45, {bind_fn(EOR), bind_fn(DP), [=]() -> byte {return 3 + MZERO + DLNONZERO;}}},
+		{0x52, {bind_fn(EOR), bind_fn(DPI), [=]() -> byte {return 5 + MZERO + DLNONZERO;}}},
+		{0x47, {bind_fn(EOR), bind_fn(DPIL), [=]() -> byte {return 6 + MZERO + DLNONZERO;}}},
+		{0x5D, {bind_fn(EOR), bind_fn(ABSX), [=]() -> byte {return 4 + MZERO + iBoundary;}}},
+		{0x5F, {bind_fn(EOR), bind_fn(ABSLX), [=]() -> byte {return 5 + MZERO;}}},
+		{0x59, {bind_fn(EOR), bind_fn(ABSY), [=]() -> byte {return 4 + MZERO + iBoundary;}}},
+		{0x55, {bind_fn(EOR), bind_fn(DPX), [=]() -> byte {return 4 + MZERO + DLNONZERO;}}},
+		{0x41, {bind_fn(EOR), bind_fn(DPIX), [=]() -> byte {return 6 + MZERO + DLNONZERO;}}},
+		{0x51, {bind_fn(EOR), bind_fn(DPINY), [=]() -> byte {return 5 + MZERO + DLNONZERO + iBoundary;}}},
+		{0x57, {bind_fn(EOR), bind_fn(DPILNY), [=]() -> byte {return 6 + MZERO + DLNONZERO;}}},
+		{0x43, {bind_fn(EOR), bind_fn(SR), [=]() -> byte {return 4 + MZERO;}}},
+		{0x53, {bind_fn(EOR), bind_fn(SRIY), [=]() -> byte {return 7 + MZERO;}}},
 		// inc, inx, iny
 		{0x1A, {bind_fn(INCA), bind_fn(IMP), []() -> byte {return 2;}}},
 		{0xEE, {bind_fn(INC), bind_fn(DP), [=]() -> byte {return 5 + DLNONZERO + (2 * MZERO);}}},
@@ -361,21 +445,87 @@ private:
 		{0xA3, {bind_fn(LDA), bind_fn(SR), [=]() -> byte {return 4 + MZERO;}}},
 		{0xB3, {bind_fn(LDA), bind_fn(SRIY), [=]() -> byte {return 7 + MZERO;}}},
 		// ldx
-		{0xA9, {bind_fn(LDX), bind_fn(IMM_X), [=]() -> byte {return 2 + XZERO;}}},
-		{0xAD, {bind_fn(LDX), bind_fn(ABS), [=]() -> byte {return 4 + XZERO;}}},
-		{0xAF, {bind_fn(LDX), bind_fn(DP), [=]() -> byte {return 3 + XZERO + DLNONZERO;}}},
-		{0xA5, {bind_fn(LDX), bind_fn(ABSY), [=]() -> byte {return 4 + XZERO + iBoundary;}}},
-		{0xB2, {bind_fn(LDX), bind_fn(DPY), [=]() -> byte {return 4 + XZERO + DLNONZERO;}}},
+		{0xA2, {bind_fn(LDX), bind_fn(IMM_X), [=]() -> byte {return 2 + XZERO;}}},
+		{0xAE, {bind_fn(LDX), bind_fn(ABS), [=]() -> byte {return 4 + XZERO;}}},
+		{0xA6, {bind_fn(LDX), bind_fn(DP), [=]() -> byte {return 3 + XZERO + DLNONZERO;}}},
+		{0xBE, {bind_fn(LDX), bind_fn(ABSY), [=]() -> byte {return 4 + XZERO + iBoundary;}}},
+		{0xB6, {bind_fn(LDX), bind_fn(DPY), [=]() -> byte {return 4 + XZERO + DLNONZERO;}}},
 		// ldy
-		{0xA9, {bind_fn(LDY), bind_fn(IMM_X), [=]() -> byte {return 2 + XZERO;}}},
-		{0xAD, {bind_fn(LDY), bind_fn(ABS), [=]() -> byte {return 4 + XZERO;}}},
-		{0xAF, {bind_fn(LDY), bind_fn(DP), [=]() -> byte {return 3 + XZERO + DLNONZERO;}}},
-		{0xA5, {bind_fn(LDY), bind_fn(ABSX), [=]() -> byte {return 4 + XZERO + DLNONZERO;}}},
-		{0xB2, {bind_fn(LDY), bind_fn(DPX), [=]() -> byte {return 4 + XZERO + DLNONZERO;}}},
+		{0xA0, {bind_fn(LDY), bind_fn(IMM_X), [=]() -> byte {return 2 + XZERO;}}},
+		{0xAC, {bind_fn(LDY), bind_fn(ABS), [=]() -> byte {return 4 + XZERO;}}},
+		{0xA4, {bind_fn(LDY), bind_fn(DP), [=]() -> byte {return 3 + XZERO + DLNONZERO;}}},
+		{0xBC, {bind_fn(LDY), bind_fn(ABSX), [=]() -> byte {return 4 + XZERO + DLNONZERO;}}},
+		{0xB4, {bind_fn(LDY), bind_fn(DPX), [=]() -> byte {return 4 + XZERO + DLNONZERO;}}},
+		// mvn, mvp
+		{0x54, {bind_fn(MVN), bind_fn(IMM16), []() -> byte {return 7;}}},
+		{0x44, {bind_fn(MVP), bind_fn(IMM16), []() -> byte {return 7;}}},
+		// nop
+		{0xEA, {bind_fn(NOP), bind_fn(IMP), []() -> byte {return 2;}}},
+		// ora
+		{0x09, {bind_fn(ORA), bind_fn(IMM_M), [=]() -> byte {return 2 + MZERO;}}},
+		{0x0D, {bind_fn(ORA), bind_fn(ABS), [=]() -> byte {return 4 + MZERO;}}},
+		{0x0F, {bind_fn(ORA), bind_fn(ABSL), [=]() -> byte {return 5 + MZERO;}}},
+		{0x05, {bind_fn(ORA), bind_fn(DP), [=]() -> byte {return 3 + MZERO + DLNONZERO;}}},
+		{0x12, {bind_fn(ORA), bind_fn(DPI), [=]() -> byte {return 5 + MZERO + DLNONZERO;}}},
+		{0x07, {bind_fn(ORA), bind_fn(DPIL), [=]() -> byte {return 6 + MZERO + DLNONZERO;}}},
+		{0x1D, {bind_fn(ORA), bind_fn(ABSX), [=]() -> byte {return 4 + MZERO + iBoundary;}}},
+		{0x1F, {bind_fn(ORA), bind_fn(ABSLX), [=]() -> byte {return 5 + MZERO;}}},
+		{0x19, {bind_fn(ORA), bind_fn(ABSY), [=]() -> byte {return 4 + MZERO + iBoundary;}}},
+		{0x15, {bind_fn(ORA), bind_fn(DPX), [=]() -> byte {return 4 + MZERO + DLNONZERO;}}},
+		{0x01, {bind_fn(ORA), bind_fn(DPIX), [=]() -> byte {return 6 + MZERO + DLNONZERO;}}},
+		{0x11, {bind_fn(ORA), bind_fn(DPINY), [=]() -> byte {return 5 + MZERO + DLNONZERO + iBoundary;}}},
+		{0x17, {bind_fn(ORA), bind_fn(DPILNY), [=]() -> byte {return 6 + MZERO + DLNONZERO;}}},
+		{0x03, {bind_fn(ORA), bind_fn(SR), [=]() -> byte {return 4 + MZERO;}}},
+		{0x13, {bind_fn(ORA), bind_fn(SRIY), [=]() -> byte {return 7 + MZERO;}}},
+		// pea, pei, per
+		{0xF4, {bind_fn(PEA), bind_fn(IMM16), []() -> byte {return 5;}}},
+		{0xD4, {bind_fn(PEI), bind_fn(DP16), [=]() -> byte {return 6 + DLNONZERO;}}},
+		{0x62, {bind_fn(PER), bind_fn(IMM16), []() -> byte {return 6;}}},
+		// push to stack
+		{0x48, {bind_fn(PHA), bind_fn(IMP), [=]() -> byte {return 3 + MZERO;}}},
+		{0x8B, {bind_fn(PHB), bind_fn(IMP), []() -> byte {return 3;}}},
+		{0x0B, {bind_fn(PHD), bind_fn(IMP), []() -> byte {return 4;}}},
+		{0x4B, {bind_fn(PHK), bind_fn(IMP), []() -> byte {return 3;}}},
+		{0x08, {bind_fn(PHP), bind_fn(IMP), []() -> byte {return 3;}}},
+		{0xDA, {bind_fn(PHX), bind_fn(IMP), [=]() -> byte {return 3 + XZERO;}}},
+		{0x5A, {bind_fn(PHY), bind_fn(IMP), [=]() -> byte {return 3 + XZERO;}}},
+		// pull from stack
+		{0x68, {bind_fn(PLA), bind_fn(IMP), [=]() -> byte {return 4 + MZERO;}}},
+		{0xAB, {bind_fn(PLB), bind_fn(IMP), []() -> byte {return 4;}}},
+		{0x2B, {bind_fn(PLD), bind_fn(IMP), []() -> byte {return 5;}}},
+		{0x28, {bind_fn(PLP), bind_fn(IMP), []() -> byte {return 4;}}},
+		{0xFA, {bind_fn(PLX), bind_fn(IMP), [=]() -> byte {return 4 + XZERO;}}},
+		{0x7A, {bind_fn(PLY), bind_fn(IMP), [=]() -> byte {return 4 + XZERO;}}},
+		// rep
+		{0xC2, {bind_fn(REP), bind_fn(IMM8), []() -> byte {return 3;}}},
+		// rol, ror
+
+		// rti, rts, rtl
+		{0x40, {bind_fn(RTI), bind_fn(IMP), [=]() -> byte {return 6 + EZERO;}}},
+		{0x60, {bind_fn(RTS), bind_fn(IMP), []() -> byte {return 6;}}},
+		{0x6B, {bind_fn(RTL), bind_fn(IMP), []() -> byte {return 6;}}},
+		// sbc
+		{0xE9, {bind_fn(SBC), bind_fn(IMM_M), [=]() -> byte {return 2 + MZERO;}}},
+		{0xED, {bind_fn(SBC), bind_fn(ABS), [=]() -> byte {return 2 + MZERO;}}},
+		{0xEF, {bind_fn(SBC), bind_fn(ABSL), [=]() -> byte {return 2 + MZERO;}}},
+		{0xE5, {bind_fn(SBC), bind_fn(DP), [=]() -> byte {return 2 + MZERO;}}},
+		{0xF2, {bind_fn(SBC), bind_fn(DPI), [=]() -> byte {return 2 + MZERO;}}},
+		{0xE7, {bind_fn(SBC), bind_fn(DPIL), [=]() -> byte {return 2 + MZERO;}}},
+		{0xFD, {bind_fn(SBC), bind_fn(ABSX), [=]() -> byte {return 2 + MZERO;}}},
+		{0xFF, {bind_fn(SBC), bind_fn(ABSLX), [=]() -> byte {return 2 + MZERO;}}},
+		{0xF9, {bind_fn(SBC), bind_fn(ABSY), [=]() -> byte {return 2 + MZERO;}}},
+		{0xF5, {bind_fn(SBC), bind_fn(DPX), [=]() -> byte {return 2 + MZERO;}}},
+		{0xE1, {bind_fn(SBC), bind_fn(DPIX), [=]() -> byte {return 2 + MZERO;}}},
+		{0xF1, {bind_fn(SBC), bind_fn(DPINY), [=]() -> byte {return 2 + MZERO;}}},
+		{0xF7, {bind_fn(SBC), bind_fn(DPILNY), [=]() -> byte {return 2 + MZERO;}}},
+		{0xE3, {bind_fn(SBC), bind_fn(SR), [=]() -> byte {return 2 + MZERO;}}},
+		{0xF3, {bind_fn(SBC), bind_fn(SRIY), [=]() -> byte {return 2 + MZERO;}}},
 		// sec, sed, sei
 		{0x38, {bind_fn(SEC), bind_fn(IMP), []() -> byte {return 2;}}},
 		{0x78, {bind_fn(SEI), bind_fn(IMP), []() -> byte {return 2;}}},
 		{0xF8, {bind_fn(SED), bind_fn(IMP), []() -> byte {return 2;}}},
+		// sep
+		{0xE2, {bind_fn(SEP), bind_fn(IMM8), []() -> byte {return 3;}}},
 		// sta
 		{0x8D, {bind_fn(STA), bind_fn(ABS), [=]() -> byte {return 4 + MZERO;}}},
 		{0x8F, {bind_fn(STA), bind_fn(ABSL), [=]() -> byte {return 5 + MZERO;}}},
@@ -403,7 +553,28 @@ private:
 		{0x9C, {bind_fn(STZ), bind_fn(ABS), [=]() -> byte {return 4 + MZERO;}}},
 		{0x64, {bind_fn(STZ), bind_fn(DP), [=]() -> byte {return 3 + MZERO + DLNONZERO;}}},
 		{0x9E, {bind_fn(STZ), bind_fn(ABSX), [=]() -> byte {return 5 + MZERO;}}},
-		{0x74, {bind_fn(STZ), bind_fn(DPX), [=]() -> byte {return 4 + MZERO + DLNONZERO;}}}
+		{0x74, {bind_fn(STZ), bind_fn(DPX), [=]() -> byte {return 4 + MZERO + DLNONZERO;}}},
+		// transfer registers
+		{0xAA, {bind_fn(TAX), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0xA8, {bind_fn(TAY), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x5B, {bind_fn(TCD), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x1B, {bind_fn(TCS), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x7B, {bind_fn(TDC), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x3B, {bind_fn(TSC), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0xBA, {bind_fn(TSX), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x8A, {bind_fn(TXA), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x9A, {bind_fn(TXS), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x9B, {bind_fn(TXY), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x98, {bind_fn(TYA), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0xBB, {bind_fn(TYX), bind_fn(IMP), []() -> byte {return 2;}}},
+		// trb, tsb
+		{0x1C, {bind_fn(TRB), bind_fn(ABS), [=]() -> byte {return 6 + (2 * MZERO);}}},
+		{0x14, {bind_fn(TRB), bind_fn(DP), [=]() -> byte {return 5 + (2 * MZERO) + DLNONZERO;}}},
+		{0x0C, {bind_fn(TSB), bind_fn(ABS), [=]() -> byte {return 6 + (2 * MZERO);}}},
+		{0x04, {bind_fn(TSB), bind_fn(DP), [=]() -> byte {return 5 + (2 * MZERO) + DLNONZERO;}}},
+		// xba, xce
+		{0xEB, {bind_fn(XBA), bind_fn(IMP), []() -> byte {return 3;}}},
+		{0xFB, {bind_fn(XCE), bind_fn(IMP), []() -> byte {return 2;}}}
 	};
 };
 

@@ -3,6 +3,7 @@
 #include "cpu.h"
 class SNES_MEMORY;
 #include "ram.h"
+
 #include <stdio.h>
 #include <iostream>
 
@@ -13,8 +14,15 @@ int main() {
 	mem->openROM("smw");
 	//mem->openROM("testrom_3adc");
 	//mem->openROM("testrom_sei");
-	std::cout << "finished reading file" << std::endl;
+
+	//mem->openROM("testrom_lda_small_large");
 	
+#ifdef FORCE_RESET_TO_8000
+	mem->override_reset_vector(0x8000);
+#endif
+
+	std::cout << "finished reading file" << std::endl;
+
 	SNES_CPU* cpu = new SNES_CPU(mem);
 	
 	for(int i = 0; i < 10000; i++) {
@@ -28,8 +36,14 @@ int main() {
 
 SNES_CPU::SNES_CPU(SNES_MEMORY* m) {
 	mem = m;
-	PC = 0x8000;
 	status.full = 0x00;
+	e = 1;
+	status.bits.m = 1;
+	status.bits.x = 1;
+	D = 0x0000;
+	DBR = 0x00;
+	PC = mem->reset_vector();
+	*SH = 0x01;
 }
 
 SNES_CPU::~SNES_CPU() {
@@ -38,14 +52,15 @@ SNES_CPU::~SNES_CPU() {
 
 bool SNES_CPU::clock() {
 	if(cyclesRemaining == 0) {
-		//get opcode
+		// check for m/x/e flags
+		updateRegisterWidths();
+
+		// get opcode
 		byte opcode = mem->readROM8(K, PC);
-		if(opcode == 0x00) {
-			std::cout << "opcode 0" << std::endl;
-			return false;
-		}
 		
+		// fetch data based on addressing mode
 		(this->ops[opcode]).mode();
+		// execute op
 		(this->ops[opcode]).op();
 		
 		cyclesRemaining += (this->ops[opcode].cycleCount)();
@@ -66,10 +81,10 @@ bool SNES_CPU::clock() {
 
 void SNES_CPU::debugPrint() {
 	std::cout << "status flags: " << std::endl;
-	std::cout << "n v m x d i z c" << std::endl;
+	std::cout << "n v m x d i z c (e)" << std::endl;
 	for(int i = 7; i >= 0; i--)
 		std::cout << getBit(status.full, i) << " ";
-	std::cout << std::endl;
+	std::cout << " " << e << std::endl;
 	std::cout << "accumulator: " << C << std::endl;
 	for(int i = 15; i >= 0; i--)
 		std::cout << getBit(C, i);
@@ -78,6 +93,22 @@ void SNES_CPU::debugPrint() {
 	for(int i = 15; i >= 0; i--)
 		std::cout << getBit(fetched, i);
 	std::cout << std::endl << std::endl;
+}
+
+void SNES_CPU::updateRegisterWidths() {
+	if(e) {
+		status.bits.m = 1;
+		status.bits.x = 1;
+	}
+
+	if(status.bits.m) {
+		*B = 0x00;
+	}
+
+	if(status.bits.x) {
+		*XH = 0x00;
+		*YH = 0x00;
+	}
 }
 
 void SNES_CPU::push_stack_threebyte(threebyte value) {
@@ -125,32 +156,81 @@ byte SNES_CPU::pop_stack_byte() {
 //
 
 void SNES_CPU::ADC() {
-	if(status.bits.m) {
-		bool final_c = ((twobyte)*A + (*fetched_lo + GET_STATUS_C) > (twobyte)0xFF);
-		bool initial_high_bit = getBit(*A, 7);
+	if(status.bits.d) {
+		status.bits.c = 0;
+		byte lower_nybble_sum = (*A & 0x0F) + (*fetched_lo & 0x0F) + status.bits.c;
+		byte upper_nybble_sum = (*A >> 4) + (*fetched_lo >> 4);
+
+		if(lower_nybble_sum > 0x09) {
+			lower_nybble_sum += 0x06;
+			lower_nybble_sum &= 0x0F;
+			upper_nybble_sum++;
+		}
+
+		if(status.bits.m) {
+			if(upper_nybble_sum > 0x09) {
+				upper_nybble_sum += 0x06;
+				upper_nybble_sum &= 0x0F;
+				status.bits.c = 1;
+			}
+
+			*A = (upper_nybble_sum << 4) | lower_nybble_sum;
+			
+			status.bits.n = getBit(*A, 7);
+			status.bits.z = (*A == 0x00);
+			return;
+		} else {
+			byte lower_nybble_sum_hi = (*B & 0x0F) + (*fetched_hi & 0x0F);
+			byte upper_nybble_sum_hi = (*B >> 4) + (*fetched_hi >> 4);
+
+			if(upper_nybble_sum > 0x09) {
+				upper_nybble_sum += 0x06;
+				upper_nybble_sum &= 0x0F;
+				lower_nybble_sum_hi++;
+			}
+
+			if(lower_nybble_sum_hi > 0x09) {
+				lower_nybble_sum_hi += 0x06;
+				lower_nybble_sum_hi &= 0x0F;
+				upper_nybble_sum_hi++;
+			}
+
+			if(upper_nybble_sum_hi > 0x09) {
+				upper_nybble_sum_hi += 0x06;
+				upper_nybble_sum_hi &= 0x0F;
+				status.bits.c = 1;
+			}
+
+			C =  (twobyte)(upper_nybble_sum_hi << 12) | (lower_nybble_sum_hi << 8) | (upper_nybble_sum << 4) | lower_nybble_sum;
 		
-		*A += *fetched_lo;
-		*A += GET_STATUS_C;
-		
-		bool new_high_bit = getBit(*A, 7);
-		
-		status.bits.c = final_c;
-		status.bits.v = ((initial_high_bit == getBit((*fetched_lo + GET_STATUS_C), 7)) && (initial_high_bit != new_high_bit));
-		status.bits.n = getBit(*A, 7);
-		status.bits.z = (*A == 0x00);
+			status.bits.n = getBit(C, 15);
+			status.bits.z = (C = 0x0000);
+			return;
+		}
 	} else {
-		bool final_c = ((unsigned int)C + (fetched + GET_STATUS_C) > (unsigned int)0xFFFF);
-		bool initial_high_bit = getBit(C, 15);
-		
-		C += fetched;
-		C += GET_STATUS_C;
-		
-		bool new_high_bit = getBit(C, 15);
-		
-		status.bits.c = final_c;
-		status.bits.v = ((initial_high_bit == getBit((fetched + GET_STATUS_C), 15)) && (initial_high_bit != new_high_bit));
-		status.bits.n = getBit(C, 15);
-		status.bits.z = (C == 0x0000);
+		if(status.bits.m) {
+			bool final_c = ((twobyte)*A + (*fetched_lo + status.bits.c) > (twobyte)0xFF);
+			bool high_bit_pre_adc = getBit(*A, 7);
+			
+			*A += *fetched_lo;
+			*A += status.bits.c;
+			
+			status.bits.v = ((high_bit_pre_adc == getBit((*fetched_lo + status.bits.c), 7)) && (high_bit_pre_adc != getBit(*A, 7)));
+			status.bits.c = final_c;
+			status.bits.n = getBit(*A, 7);
+			status.bits.z = (*A == 0x00);
+		} else {
+			bool final_c = ((threebyte)C + (fetched + status.bits.c) > (threebyte)0xFFFF);
+			bool high_bit_pre_adc = getBit(C, 15);
+			
+			C += fetched;
+			C += status.bits.c;
+			
+			status.bits.v = ((high_bit_pre_adc == getBit((fetched + status.bits.c), 15)) && (high_bit_pre_adc != getBit(C, 15)));
+			status.bits.c = final_c;
+			status.bits.n = getBit(C, 15);
+			status.bits.z = (C == 0x0000);
+		}
 	}
 }
 
@@ -331,17 +411,45 @@ void SNES_CPU::BRL() {
 }
 
 void SNES_CPU::BVC() {
-	if(!GET_STATUS_V){
+	if(!status.bits.v){
 		PC += (signedbyte)*fetched_lo;
 		branchTaken = true;
 	} else branchTaken = false;
 }
 
 void SNES_CPU::BVS() {
-	if(GET_STATUS_V){
+	if(status.bits.v){
 		PC += (signedbyte)*fetched_lo;
 		branchTaken = true;
 	} else branchTaken = false;
+}
+
+void SNES_CPU::BRK() {
+	push_stack_byte(K);
+	push_stack_twobyte(PC);
+	push_stack_byte(status.full);
+
+	DBR = 0x00;
+
+	status.bits.d = 0;
+	status.bits.i = 0;
+
+	K = 0x00;
+	PC = mem->brk_vector();
+}
+
+void SNES_CPU::COP() {
+	push_stack_byte(K);
+	push_stack_twobyte(PC);
+	push_stack_byte(status.full);
+
+	DBR = 0x00;
+
+	status.bits.d = 0;
+	status.bits.i = 0;
+
+	K = 0x00;
+	PC = mem->cop_vector();
 }
 
 void SNES_CPU::CLC() {
@@ -490,6 +598,20 @@ void SNES_CPU::DEY() {
 	}
 }
 
+void SNES_CPU::EOR() {
+	if(status.bits.m) {
+		*A ^= *fetched_lo;
+
+		status.bits.n = getBit(*A, 7);
+		status.bits.z = (*A == 0x00);
+	} else {
+		C ^= fetched;
+
+		status.bits.n = getBit(C, 15);
+		status.bits.z = (C == 0x0000);
+	}
+}
+
 void SNES_CPU::INC() {
 	if(status.bits.m) {
 		byte data = mem->read8(*fetched_addr_bank, *fetched_addr_abs);
@@ -601,16 +723,311 @@ void SNES_CPU::LDY() {
 	}
 }
 
+void SNES_CPU::MVN() {
+	byte source_bank = *fetched_lo;
+	byte dest_bank = *fetched_hi;
+
+	while(C != 0xFFFF) {
+		mem->write8(dest_bank, Y, mem->read8(source_bank, X));
+		X++;
+		Y++;
+		C--;
+	}
+}
+
+void SNES_CPU::MVP() {
+	byte source_bank = *fetched_lo;
+	byte dest_bank = *fetched_hi;
+
+	while(C != 0xFFFF) {
+		mem->write8(dest_bank, Y, mem->read8(source_bank, X));
+		X--;
+		Y--;
+		C--;
+	}
+}
+
+void SNES_CPU::ORA() {
+	if(status.bits.m) {
+		*A |= *fetched_lo;
+
+		status.bits.n = getBit(*A, 7);
+		status.bits.z = (*A == 0x00);
+	} else {
+		C |= fetched;
+
+		status.bits.n = getBit(C, 15);
+		status.bits.z = (C == 0x0000);
+	}
+}
+
+void SNES_CPU::PEA() {
+	push_stack_twobyte(fetched);
+}
+
+void SNES_CPU::PEI() {
+	push_stack_twobyte(fetched);
+}
+
+void SNES_CPU::PER() {
+	push_stack_twobyte(fetched);
+}
+
+// push
+
+void SNES_CPU::PHA() {
+	if(status.bits.m) {
+		push_stack_twobyte(C);
+	} else {
+		push_stack_byte(*A);
+	}
+}
+
+void SNES_CPU::PHB() {
+	push_stack_byte(DBR);
+}
+
+void SNES_CPU::PHD() {
+	push_stack_twobyte(D);
+}
+
+void SNES_CPU::PHK() {
+	push_stack_byte(K);
+}
+
+void SNES_CPU::PHP() {
+	push_stack_byte(status.full);
+}
+
+void SNES_CPU::PHX() {
+	if(status.bits.x) {
+		push_stack_twobyte(X);
+	} else {
+		push_stack_byte(*XL);
+	}
+}
+
+void SNES_CPU::PHY() {
+	if(status.bits.x) {
+		push_stack_twobyte(Y);
+	} else {
+		push_stack_byte(*YL);
+	}
+}
+
+// pull
+
+void SNES_CPU::PLA() {
+	if(status.bits.m) {
+		C = pop_stack_twobyte();
+
+		status.bits.n = getBit(C, 15);
+		status.bits.z = (C == 0x0000);
+	} else {
+		*A = pop_stack_byte();
+
+		status.bits.n = getBit(*A, 7);
+		status.bits.z = (*A == 0x00);
+	}
+}
+
+void SNES_CPU::PLB() {
+	DBR = pop_stack_byte();
+
+	status.bits.n = getBit(DBR, 7);
+	status.bits.z = (DBR == 0x00);
+}
+
+void SNES_CPU::PLD() {
+	D = pop_stack_twobyte();
+
+	status.bits.n = getBit(D, 15);
+	status.bits.z = (D == 0x0000);
+}
+
+void SNES_CPU::PLP() {
+	status.full = pop_stack_byte();
+
+	if(e) {
+		status.bits.m = 1;
+		status.bits.x = 1;
+	}
+}
+
+void SNES_CPU::PLX() {
+	if(status.bits.m) {
+		X = pop_stack_twobyte();
+
+		status.bits.n = getBit(X, 15);
+		status.bits.z = (X == 0x0000);
+	} else {
+		*XL = pop_stack_byte();
+
+		status.bits.n = getBit(*XL, 7);
+		status.bits.z = (*XL == 0x00);
+	}
+}
+
+void SNES_CPU::PLY() {
+	if(status.bits.m) {
+		Y = pop_stack_twobyte();
+
+		status.bits.n = getBit(Y, 15);
+		status.bits.z = (Y == 0x0000);
+	} else {
+		*YL = pop_stack_byte();
+
+		status.bits.n = getBit(*YL, 7);
+		status.bits.z = (*YL == 0x00);
+	}
+}
+
+void SNES_CPU::REP() {
+	status.full &= ~(*fetched_lo);
+
+	if(e) {
+		status.bits.m = 1;
+		status.bits.x = 1;
+	}
+}
+
+void SNES_CPU::ROL() {
+	if(status.bits.m) {
+
+	} else {
+
+	}
+}
+
+void SNES_CPU::ROR() {
+	if(status.bits.m) {
+
+	} else {
+		
+	}
+}
+
+void SNES_CPU::RTI() {
+	status.full = pop_stack_byte();
+	PC = pop_stack_twobyte();
+
+	if(!e) {
+		K = pop_stack_byte();
+	}
+}
+
+void SNES_CPU::RTS() {
+	PC = pop_stack_twobyte();
+	PC++;
+
+	K = pop_stack_byte();
+}
+
+void SNES_CPU::RTL() {
+	PC = pop_stack_twobyte();
+	PC++;
+}
+
+void SNES_CPU::SBC() {
+	if(status.bits.d) {
+		status.bits.c = 1;
+		byte lower_nybble_diff = (*A & 0x0F) - (*fetched_lo & 0x0F) - (status.bits.c ? 0 : 1);
+		byte upper_nybble_diff = (*A >> 4) - (*fetched_lo >> 4);
+
+		if(lower_nybble_diff > 0x09) {
+			lower_nybble_diff -= 0x06;
+			lower_nybble_diff &= 0x0F;
+			upper_nybble_diff--;
+		}
+
+		if(status.bits.m) {
+			if(upper_nybble_diff > 0x09) {
+				upper_nybble_diff -= 0x06;
+				upper_nybble_diff &= 0x0F;
+				status.bits.c = 0;
+			}
+
+			*A = (upper_nybble_diff << 4) | lower_nybble_diff;
+			
+			status.bits.n = getBit(*A, 7);
+			status.bits.z = (*A == 0x00);
+			return;
+		} else {
+			byte lower_nybble_diff_hi = (*B & 0x0F) - (*fetched_hi & 0x0F);
+			byte upper_nybble_diff_hi = (*B >> 4) - (*fetched_hi >> 4);
+
+			if(upper_nybble_diff > 0x09) {
+				upper_nybble_diff -= 0x06;
+				upper_nybble_diff &= 0x0F;
+				lower_nybble_diff_hi--;
+			}
+
+			if(lower_nybble_diff_hi > 0x09) {
+				lower_nybble_diff_hi -= 0x06;
+				lower_nybble_diff_hi &= 0x0F;
+				upper_nybble_diff_hi--;
+			}
+
+			if(upper_nybble_diff_hi > 0x09) {
+				upper_nybble_diff_hi -= 0x06;
+				upper_nybble_diff_hi &= 0x0F;
+				status.bits.c = 0;
+			}
+
+			C =  (twobyte)(upper_nybble_diff_hi << 12) | (lower_nybble_diff_hi << 8) | (upper_nybble_diff << 4) | lower_nybble_diff;
+		
+			status.bits.n = getBit(C, 15);
+			status.bits.z = (C = 0x0000);
+			return;
+		}
+	} else {
+		if(status.bits.m) {
+			bool final_c = (*A >= *fetched_lo);
+			bool high_bit_pre_sbc = getBit(*A, 7);
+			
+			*A -= *fetched_lo;
+			*A -= (status.bits.c ? 0 : 1);
+			
+			status.bits.v = ((high_bit_pre_sbc != getBit(*fetched_lo + (status.bits.c ? 0 : 1), 7))
+							&& (high_bit_pre_sbc != getBit(*A, 7)));
+			status.bits.c = final_c;
+			status.bits.n = getBit(*A, 7);
+			status.bits.z = (*A == 0x00);
+		} else {
+			bool final_c = (C >= fetched);
+			bool high_bit_pre_sbc = getBit(C, 15);
+			
+			C -= fetched;
+			C -= (status.bits.c ? 0 : 1);
+			
+			status.bits.v = ((high_bit_pre_sbc != getBit(fetched + (status.bits.c ? 0 : 1), 15))
+							&& (high_bit_pre_sbc != getBit(C, 15)));
+			status.bits.c = final_c;
+			status.bits.n = getBit(C, 15);
+			status.bits.z = (C == 0x0000);
+		}
+	}
+}
+
 void SNES_CPU::SEC() {
 	status.bits.c = 1;
+}
+
+void SNES_CPU::SEI() {
+	status.bits.i = 1;
 }
 
 void SNES_CPU::SED() {
 	status.bits.d = 1;
 }
 
-void SNES_CPU::SEI() {
-	status.bits.i = 1;
+void SNES_CPU::SEP() {
+	status.full |= *fetched_lo;
+
+	if(status.bits.x) {
+		*XH = 0x00;
+		*XL = 0x00;
+	}
 }
 
 void SNES_CPU::STA() {
@@ -642,6 +1059,219 @@ void SNES_CPU::STZ() {
 		mem->write8(*fetched_addr_bank, *fetched_addr_abs, *A);
 	} else {
 		mem->write16(*fetched_addr_bank, *fetched_addr_abs, C, wrap_writes);
+	}
+}
+
+void SNES_CPU::TAX() {
+	if(status.bits.x) {
+		*XL = *A;
+
+		status.bits.n = getBit(*A, 7);
+		status.bits.z = (*A == 0x00);
+	} else {
+		X = C;
+
+		status.bits.n = getBit(C, 15);
+		status.bits.z = (C == 0x0000);
+	}
+}
+
+void SNES_CPU::TAY() {
+	if(status.bits.x) {
+		*YL = *A;
+
+		status.bits.n = getBit(*A, 7);
+		status.bits.z = (*A == 0x00);
+	} else {
+		Y = C;
+
+		status.bits.n = getBit(C, 15);
+		status.bits.z = (C == 0x0000);
+	}
+}
+
+void SNES_CPU::TCD() {
+	D = C;
+
+	status.bits.n = getBit(C, 15);
+	status.bits.z = (C == 0x0000);
+}
+
+void SNES_CPU::TCS() {
+	S = C;
+
+	status.bits.n = getBit(C, 15);
+	status.bits.z = (C == 0x0000);
+}
+
+void SNES_CPU::TDC() {
+	C = D;
+
+	status.bits.n = getBit(D, 15);
+	status.bits.z = (D == 0x0000);
+}
+
+void SNES_CPU::TSC() {
+	C = S;
+
+	status.bits.n = getBit(S, 15);
+	status.bits.z = (S == 0x0000);
+}
+
+void SNES_CPU::TSX() {
+	if(status.bits.x) {
+		*XL = *SL;
+
+		status.bits.n = getBit(*SL, 7);
+		status.bits.z = (*SL == 0x00);
+	} else {
+		X = S;
+
+		status.bits.n = getBit(S, 15);
+		status.bits.z = (S == 0x0000);
+	}
+}
+
+void SNES_CPU::TXA() {
+	if(status.bits.m) {
+		*A = *XL;
+
+		status.bits.n = getBit(*XL, 7);
+		status.bits.z = (*XL == 0x00);
+	} else {
+		C = X;
+
+		status.bits.n = getBit(X, 15);
+		status.bits.z = (X == 0x0000);
+	}
+}
+
+void SNES_CPU::TXS() {
+	S = X;
+
+	status.bits.n = getBit(X, 15);
+	status.bits.z = (X == 0x0000);
+}
+
+void SNES_CPU::TXY() {
+	if(status.bits.x) {
+		*YL = *XL;
+
+		status.bits.n = getBit(*XL, 7);
+		status.bits.z = (*XL == 0x00);
+	} else {
+		Y = X;
+
+		status.bits.n = getBit(X, 15);
+		status.bits.z = (X == 0x0000);
+	}
+}
+
+void SNES_CPU::TYA() {
+	if(status.bits.m) {
+		*A = *YL;
+
+		status.bits.n = getBit(*YL, 7);
+		status.bits.z = (*YL == 0x00);
+	} else {
+		C = Y;
+
+		status.bits.n = getBit(Y, 15);
+		status.bits.z = (Y == 0x0000);
+	}
+}
+
+void SNES_CPU::TYX() {
+	if(status.bits.x) {
+		*XL = *YL;
+
+		status.bits.n = getBit(*YL, 7);
+		status.bits.z = (*YL == 0x00);
+	} else {
+		X = Y;
+
+		status.bits.n = getBit(Y, 15);
+		status.bits.z = (Y == 0x0000);
+	}
+}
+
+void SNES_CPU::TRB() {
+	if(status.bits.m) {
+		byte data = *fetched_lo;
+
+		status.bits.z = ((*A & data) == 0x00);
+
+		for(int i = 0; i < 8; i++) {
+			if(getBit(*A, i)) {
+				data &= ~(1 << i);
+			}
+		}
+
+		mem->write8(DBR, *fetched_addr_abs, data);
+	} else {
+		twobyte data = fetched;
+
+		status.bits.z = ((C & data) == 0x0000);
+
+		for(int i = 0; i < 16; i++) {
+			if(getBit(C, i)) {
+				data &= ~(1 << i);
+			}
+		}
+
+		mem->write16(DBR, *fetched_addr_abs, data, wrap_writes);
+	}
+}
+
+void SNES_CPU::TSB() {
+	if(status.bits.m) {
+		byte data = *fetched_lo;
+
+		status.bits.z = ((*A & data) == 0x00);
+
+		for(int i = 0; i < 8; i++) {
+			if(getBit(*A, i)) {
+				data |= (1 << i);
+			}
+		}
+
+		mem->write8(DBR, *fetched_addr_abs, data);
+	} else {
+		twobyte data = fetched;
+
+		status.bits.z = ((C & data) == 0x0000);
+
+		for(int i = 0; i < 16; i++) {
+			if(getBit(C, i)) {
+				data |= (1 << i);
+			}
+		}
+
+		mem->write16(DBR, *fetched_addr_abs, data, wrap_writes);
+	}
+}
+
+void SNES_CPU::WAI() {
+
+}
+
+void SNES_CPU::XBA() {
+	byte B_pre_swap = *B;
+	
+	*B = *A;
+	*A = B_pre_swap;
+
+	status.bits.n = getBit(B_pre_swap, 7);
+	status.bits.z = (B_pre_swap == 0x00);
+}
+
+void SNES_CPU::XCE() {
+	bool carry = status.bits.c;
+	status.bits.c = e;
+	e = carry;
+	if(e) {
+		status.bits.m = 1;
+		status.bits.x = 1;
 	}
 }
 
@@ -685,6 +1315,13 @@ void SNES_CPU::DP() {
 	} else {
 		fetched = mem->read16_bank0(*fetched_addr_abs);
 	}
+}
+
+void SNES_CPU::DP16() {
+	*fetched_addr_bank = 0x00;
+	*fetched_addr_abs = D + mem->readROM8(K, PC);
+
+	fetched = mem->read16_bank0(*fetched_addr_abs);
 }
 
 // Direct Page Indexed, X

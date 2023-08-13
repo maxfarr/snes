@@ -29,11 +29,19 @@ public:
 	
 	void write8(byte bank, twobyte addr, byte entry);
 	void write16(byte bank, twobyte addr, twobyte entry, bool wrap = false);
+
+	twobyte brk_vector();
+	twobyte cop_vector();
+	twobyte reset_vector();
+
+	void override_reset_vector(twobyte addr) {m_reset_vector = addr;};
 	
 	void openROM(std::string filename);
 private:
 	void apply_mirrors(byte& bank, twobyte addr);
-	std::array<byte, 1024 * 64 * 256> data;
+
+	std::array<byte, SNES_RAM_SIZE> data;
+	twobyte m_reset_vector;
 };
 
 #endif
