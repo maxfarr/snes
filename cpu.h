@@ -419,13 +419,13 @@ private:
 		{0xE8, {bind_fn(INX), bind_fn(IMP), []() -> byte {return 2;}}},
 		{0xC8, {bind_fn(INY), bind_fn(IMP), []() -> byte {return 2;}}},
 		// jmp, jml
-		{0x4C, {bind_fn(JMP), bind_fn(ABS_JMP_JSR), []() -> byte {return 3;}}},
+		{0x4C, {bind_fn(JMP), bind_fn(IMM16), []() -> byte {return 3;}}},
 		{0x6C, {bind_fn(JMP), bind_fn(ABSI), []() -> byte {return 5;}}},
 		{0x7C, {bind_fn(JMP), bind_fn(ABSIX), []() -> byte {return 6;}}},
 		{0x5C, {bind_fn(JML), bind_fn(ABSL_JML_JSL), []() -> byte {return 4;}}},
 		{0xDC, {bind_fn(JML), bind_fn(ABSIL), []() -> byte {return 6;}}},
 		// jsr, jsl
-		{0x20, {bind_fn(JSR), bind_fn(ABS_JMP_JSR), []() -> byte {return 6;}}},
+		{0x20, {bind_fn(JSR), bind_fn(IMM16), []() -> byte {return 6;}}},
 		{0xFC, {bind_fn(JSR), bind_fn(ABSIX), []() -> byte {return 8;}}},
 		{0x22, {bind_fn(JSL), bind_fn(ABSL_JML_JSL), []() -> byte {return 8;}}},
 		// lda

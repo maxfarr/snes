@@ -1526,13 +1526,6 @@ void SNES_CPU::ABS() {
 		fetched = mem->read16(DBR, *fetched_addr_abs);
 }
 
-void SNES_CPU::ABS_JMP_JSR() {
-	*fetched_addr_bank = K;
-	*fetched_addr_abs = mem->readROM16(K, PC);
-
-	fetched = mem->read16(DBR, *fetched_addr_abs);
-}
-
 void SNES_CPU::ABSI() {
 	fetched = mem->read16_bank0(mem->readROM16(K, PC));
 }
