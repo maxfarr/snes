@@ -8,8 +8,6 @@
 #include <iomanip>
 #include <fstream>
 
-#define HEX_BYTE_PRINT(x) std::setw(2) << std::setfill('0') << (unsigned int)(0xFF & x)
-
 void SNES_MEMORY::apply_mirrors(byte& bank, twobyte addr) {
 	// mirror low RAM
 	if(addr <= 0x1FFF && (bank <= 0x3F || (bank >= 0x80 && bank <= 0xBF))) bank = 0x7E;
@@ -145,7 +143,7 @@ twobyte SNES_MEMORY::readROM16(byte K, twobyte& PC) {
 
 threebyte SNES_MEMORY::readROM24(byte K, twobyte& PC) {
 	apply_mirrors(K, PC);
-	threebyte addr = PC + (K << 16);
+	threebyte addr = PC | (K << 16);
 	
 	threebyte value = (threebyte)data[addr];
 	PC++;
@@ -177,13 +175,13 @@ void SNES_MEMORY::write8(byte bank, twobyte addr, byte entry) {
 void SNES_MEMORY::write16(byte bank, twobyte addr, twobyte entry, bool wrap) {
 	apply_mirrors(bank, addr);
 	
-	threebyte complete_addr = addr + (bank << 16);
+	threebyte complete_addr = (threebyte)addr + (bank << 16);
 
 	data[complete_addr] = (byte)(entry & 0x00FF);
 	data[complete_addr+1] = (byte)((entry & 0xFF00) >> 8);
 #ifdef DEBUG_MEMORY
 	std::cout << "write16: wrote twobyte $" << std::hex << entry <<
-	" to 0x" << complete_addr << std::dec << std::endl;
+	" to 0x" << std::setw(6) << complete_addr << std::dec << std::endl;
 #endif
 }
 

@@ -6,6 +6,7 @@ class SNES_MEMORY;
 
 #include <stdio.h>
 #include <iostream>
+#include <iomanip>
 
 int main() {
 	// test program initializes SNES components individually
@@ -92,7 +93,11 @@ void SNES_CPU::debugPrint() {
 	std::cout << "fetched: " << fetched << std::endl;
 	for(int i = 15; i >= 0; i--)
 		std::cout << getBit(fetched, i);
-	std::cout << std::endl << std::endl;
+	std::cout << std::endl;
+	std::cout << "K: " << std::hex << HEX_BYTE_PRINT(K) << std::dec << std::endl;
+	std::cout << "PC: " << std::hex << std::setw(4) << PC << std::dec << std::endl;
+	std::cout << "D: " << std::hex << std::setw(4) << D << std::dec << std::endl;
+	std::cout << std::endl;
 }
 
 void SNES_CPU::updateRegisterWidths() {
@@ -250,7 +255,7 @@ void SNES_CPU::AND() {
 
 void SNES_CPU::ASL() {
 	if(status.bits.m) {
-		byte data = mem->read8(*fetched_addr_bank, *fetched_addr_abs);
+		byte data = *fetched_lo;
 		
 		status.bits.c = getBit(data, 7);
 		data <<= 1;
@@ -260,12 +265,12 @@ void SNES_CPU::ASL() {
 		status.bits.n = getBit(data, 7);
 		status.bits.z = (data == 0x00);
 	} else {
-		twobyte data = mem->read16(*fetched_addr_bank, *fetched_addr_abs);
+		twobyte data = fetched;
 		
 		status.bits.c = getBit(data, 15);
 		data <<= 1;
 		
-		mem->write16(*fetched_addr_bank, *fetched_addr_abs, data);
+		mem->write16(*fetched_addr_bank, *fetched_addr_abs, data, wrap_writes);
 		
 		status.bits.n = getBit(data, 15);
 		status.bits.z = (data == 0x0000);
@@ -284,13 +289,13 @@ void SNES_CPU::ASLA() {
 		C <<= 1;
 		
 		status.bits.n = getBit(C, 15);
-		status.bits.z = (*A == 0x00);
+		status.bits.z = (C == 0x0000);
 	}
 }
 
 void SNES_CPU::LSR() {
 	if(status.bits.m) {
-		byte data = mem->read8(*fetched_addr_bank, *fetched_addr_abs);
+		byte data = *fetched_lo;
 		
 		status.bits.c = getBit(data, 0);
 		data >>= 1;
@@ -300,12 +305,12 @@ void SNES_CPU::LSR() {
 		status.bits.n = getBit(data, 7);
 		status.bits.z = (data == 0x00);
 	} else {
-		twobyte data = mem->read16(*fetched_addr_bank, *fetched_addr_abs);
+		twobyte data = fetched;
 		
 		status.bits.c = getBit(data, 0);
 		data >>= 1;
 		
-		mem->write16(*fetched_addr_bank, *fetched_addr_abs, data);
+		mem->write16(*fetched_addr_bank, *fetched_addr_abs, data, wrap_writes);
 		
 		status.bits.n = getBit(data, 15);
 		status.bits.z = (data == 0x0000);
@@ -324,7 +329,7 @@ void SNES_CPU::LSRA() {
 		C >>= 1;
 		
 		status.bits.n = getBit(C, 15);
-		status.bits.z = (*A == 0x00);
+		status.bits.z = (C == 0x0000);
 	}
 }
 
@@ -404,10 +409,12 @@ void SNES_CPU::BPL() {
 
 void SNES_CPU::BRA() {
 	PC += (signedbyte)*fetched_lo;
+	branchTaken = true;
 }
 
 void SNES_CPU::BRL() {
 	PC += (signedtwobyte)fetched;
+	branchTaken = true;
 }
 
 void SNES_CPU::BVC() {
@@ -910,18 +917,92 @@ void SNES_CPU::REP() {
 }
 
 void SNES_CPU::ROL() {
+	bool c_pre_shift = status.bits.c;
 	if(status.bits.m) {
-
+		byte data = *fetched_lo;
+		
+		status.bits.c = getBit(data, 7);
+		data <<= 1;
+		data |= c_pre_shift;
+		
+		mem->write8(*fetched_addr_bank, *fetched_addr_abs, data);
+		
+		status.bits.n = getBit(data, 7);
+		status.bits.z = (data == 0x00);
 	} else {
+		twobyte data = fetched;
+		
+		status.bits.c = getBit(data, 15);
+		data <<= 1;
+		data |= c_pre_shift;
+		
+		mem->write16(*fetched_addr_bank, *fetched_addr_abs, data, wrap_writes);
+		
+		status.bits.n = getBit(data, 15);
+		status.bits.z = (data == 0x0000);
+	}
+}
 
+void SNES_CPU::ROLA() {
+	bool c_pre_shift = status.bits.c;
+	if(status.bits.m) {
+		status.bits.c = getBit(*A, 7);
+		*A <<= 1;
+		*A |= c_pre_shift;
+		
+		status.bits.n = getBit(*A, 7);
+		status.bits.z = (*A == 0x00);
+	} else {
+		status.bits.c = getBit(C, 15);
+		C <<= 1;
+		C |= c_pre_shift;
+		
+		status.bits.n = getBit(C, 15);
+		status.bits.z = (C == 0x0000);
 	}
 }
 
 void SNES_CPU::ROR() {
+	bool c_pre_shift = status.bits.c;
+	status.bits.c = getBit(fetched, 0);
 	if(status.bits.m) {
-
-	} else {
+		byte data = *fetched_lo;
 		
+		data >>= 1;
+		data |= (c_pre_shift << 7);
+		
+		mem->write8(*fetched_addr_bank, *fetched_addr_abs, data);
+		
+		status.bits.n = getBit(data, 7);
+		status.bits.z = (data == 0x00);
+	} else {
+		twobyte data = fetched;
+		
+		data <<= 1;
+		data |= (c_pre_shift << 15);
+		
+		mem->write16(*fetched_addr_bank, *fetched_addr_abs, data, wrap_writes);
+		
+		status.bits.n = getBit(data, 15);
+		status.bits.z = (data == 0x0000);
+	}
+}
+
+void SNES_CPU::RORA() {
+	bool c_pre_shift = status.bits.c;
+	status.bits.c = getBit(C, 0);
+	if(status.bits.m) {
+		*A <<= 1;
+		*A |= (c_pre_shift << 7);
+		
+		status.bits.n = getBit(*A, 7);
+		status.bits.z = (*A == 0x00);
+	} else {
+		C <<= 1;
+		C |= (c_pre_shift << 15);
+		
+		status.bits.n = getBit(C, 15);
+		status.bits.z = (C == 0x0000);
 	}
 }
 
@@ -1270,7 +1351,7 @@ void SNES_CPU::TSB() {
 }
 
 void SNES_CPU::WAI() {
-
+	std::cout << "called WAI" << std::endl;
 }
 
 void SNES_CPU::XBA() {
@@ -1338,6 +1419,7 @@ void SNES_CPU::DP() {
 void SNES_CPU::DP16() {
 	*fetched_addr_bank = 0x00;
 	*fetched_addr_abs = D + mem->readROM8(K, PC);
+	wrap_writes = true;
 
 	fetched = mem->read16_bank0(*fetched_addr_abs);
 }
@@ -1373,6 +1455,10 @@ void SNES_CPU::DPY() {
 // Direct Page Indirect
 void SNES_CPU::DPI() {
 	twobyte addr = mem->read16_bank0(D + mem->readROM8(K, PC));
+
+	*fetched_addr_bank = DBR;
+	*fetched_addr_abs = addr;
+
 	if(status.bits.m)
 		*fetched_lo = mem->read8(DBR, addr);
 	else
@@ -1382,6 +1468,9 @@ void SNES_CPU::DPI() {
 // Direct Page Indirect Long
 void SNES_CPU::DPIL() {
 	threebyte addr = mem->read24_bank0(D + mem->readROM8(K, PC));
+
+	fetched_addr = addr;
+
 	if(status.bits.m)
 		*fetched_lo = mem->read8((addr & 0xFF0000) >> 16, addr & 0xFFFF);
 	else
@@ -1391,6 +1480,9 @@ void SNES_CPU::DPIL() {
 // Direct Page Indirect, X
 void SNES_CPU::DPIX() {
 	twobyte addr = mem->read16_bank0(D + mem->readROM8(K, PC) + X);
+
+	*fetched_addr_bank = DBR;
+	*fetched_addr_abs = addr;
 	
 	if(status.bits.m)
 		*fetched_lo = mem->read8(DBR, addr);
@@ -1401,6 +1493,9 @@ void SNES_CPU::DPIX() {
 // Direct Page Indirect iNdexed, Y
 void SNES_CPU::DPINY() {
 	twobyte addr = mem->read16_bank0(D + mem->readROM8(K, PC));
+
+	*fetched_addr_bank = DBR;
+	*fetched_addr_abs = addr;
 	
 	if(status.bits.m)
 		*fetched_lo = mem->read8(DBR, addr + Y);
@@ -1411,6 +1506,8 @@ void SNES_CPU::DPINY() {
 // Direct Page Indirect Long iNdexed, Y
 void SNES_CPU::DPILNY() {
 	threebyte addr = mem->read24_bank0(D + mem->readROM8(K, PC));
+
+	fetched_addr = addr;
 	
 	if(status.bits.m)
 		*fetched_lo = mem->read8(addr + Y);
@@ -1454,6 +1551,9 @@ void SNES_CPU::ABSIX() {
 
 void SNES_CPU::ABSL() {
 	threebyte addr = mem->readROM24(K, PC);
+
+	fetched_addr = addr;
+
 	if(status.bits.m)
 		*fetched_lo = mem->read8(addr);
 	else
@@ -1471,7 +1571,6 @@ void SNES_CPU::ABSX() {
 		addr_long += *XL;
 	else
 		addr_long += X;
-	
 	
 	fetched_addr = addr_long;
 	
@@ -1491,6 +1590,8 @@ void SNES_CPU::ABSY() {
 	else
 		addr_long += Y;
 	
+	fetched_addr = addr_long;
+	
 	if(status.bits.m && status.bits.x)
 		*fetched_lo = mem->read8((addr_long & 0xFF0000) >> 16, addr_long & 0xFFFF);
 	else
@@ -1506,6 +1607,8 @@ void SNES_CPU::ABSLX() {
 		addr_long += *XL;
 	else
 		addr_long += X;
+
+	fetched_addr = addr_long;
 	
 	if(status.bits.m && status.bits.x)
 		*fetched_lo = mem->read8((addr_long & 0xFF0000) >> 16, addr_long & 0xFFFF);
@@ -1520,6 +1623,8 @@ void SNES_CPU::ABSLY() {
 		addr_long += *YL;
 	else
 		addr_long += Y;
+
+	fetched_addr = addr_long;
 	
 	if(status.bits.m && status.bits.x)
 		*fetched_lo = mem->read8((addr_long & 0xFF0000) >> 16, addr_long & 0xFFFF);
@@ -1531,24 +1636,15 @@ void SNES_CPU::ABSLY() {
 
 void SNES_CPU::SR() {
 	twobyte addr = (twobyte)mem->readROM8(K, PC) + S;
-	if(status.bits.m && status.bits.x)
-		*fetched_lo = mem->read8(0x00, addr);
-	else
-		fetched = mem->read16(0x00, addr);
-}
 
-void SNES_CPU::SRIX() {
-	threebyte addr = ((twobyte)mem->readROM8(K, PC) + S) + (DBR << 16);
-	
-	if(status.bits.x)
-		addr += *XL;
-	else
-		addr += X;
-	
+	*fetched_addr_bank = 0x00;
+	*fetched_addr_abs = addr;
+	wrap_writes = true;
+
 	if(status.bits.m && status.bits.x)
-		*fetched_lo = mem->read8((addr & 0xFF0000) >> 16, addr & 0xFFFF);
+		*fetched_lo = mem->read8_bank0(addr);
 	else
-		fetched = mem->read16((addr & 0xFF0000) >> 16, addr & 0xFFFF);
+		fetched = mem->read16_bank0(addr);
 }
 
 void SNES_CPU::SRIY() {
@@ -1558,6 +1654,8 @@ void SNES_CPU::SRIY() {
 		addr += *YL;
 	else
 		addr += Y;
+
+	fetched_addr = addr;
 	
 	if(status.bits.m && status.bits.x)
 		*fetched_lo = mem->read8((addr & 0xFF0000) >> 16, addr & 0xFFFF);

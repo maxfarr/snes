@@ -104,8 +104,8 @@ private:
 
 	void REP();
 
-	void ROL();
-	void ROR();
+	void ROL(); void ROLA();
+	void ROR(); void RORA();
 
 	void RTI();
 
@@ -188,7 +188,7 @@ private:
 	// stack relative
 	void SR();
 	
-	void SRIX(); void SRIY();
+	void SRIY();
 	
 	// memory
 	SNES_MEMORY* mem;
@@ -498,8 +498,18 @@ private:
 		{0x7A, {bind_fn(PLY), bind_fn(IMP), [=]() -> byte {return 4 + XZERO;}}},
 		// rep
 		{0xC2, {bind_fn(REP), bind_fn(IMM8), []() -> byte {return 3;}}},
-		// rol, ror
-
+		// rol
+		{0x2A, {bind_fn(ROLA), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x2E, {bind_fn(ROL), bind_fn(ABS), [=]() -> byte {return 6 + MZERO;}}},
+		{0x26, {bind_fn(ROL), bind_fn(DP), [=]() -> byte {return 5 + MZERO + DLNONZERO;}}},
+		{0x3E, {bind_fn(ROL), bind_fn(ABSX), [=]() -> byte {return 7 + MZERO;}}},
+		{0x36, {bind_fn(ROL), bind_fn(DPX), [=]() -> byte {return 6 + MZERO + DLNONZERO;}}},
+		// ror
+		{0x6A, {bind_fn(RORA), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0x6E, {bind_fn(ROR), bind_fn(ABS), [=]() -> byte {return 6 + MZERO;}}},
+		{0x66, {bind_fn(ROR), bind_fn(DP), [=]() -> byte {return 5 + MZERO + DLNONZERO;}}},
+		{0x7E, {bind_fn(ROR), bind_fn(ABSX), [=]() -> byte {return 7 + MZERO;}}},
+		{0x76, {bind_fn(ROR), bind_fn(DPX), [=]() -> byte {return 6 + MZERO + DLNONZERO;}}},
 		// rti, rts, rtl
 		{0x40, {bind_fn(RTI), bind_fn(IMP), [=]() -> byte {return 6 + EZERO;}}},
 		{0x60, {bind_fn(RTS), bind_fn(IMP), []() -> byte {return 6;}}},
