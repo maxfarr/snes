@@ -1,5 +1,5 @@
-build: cpu.cpp ram.cpp
-	g++ -Wall cpu.cpp ram.cpp -o cpu
+build: snes.cpp cpu.cpp ram.cpp
+	g++ -Wall snes.cpp cpu.cpp ram.cpp -o snes
 
-debug: cpu.cpp ram.cpp
-	g++ -g -Wall cpu.cpp ram.cpp -o cpu
+debug: snes.cpp cpu.cpp ram.cpp
+	g++ -g -Wall snes.cpp cpu.cpp ram.cpp -o snes

@@ -5,6 +5,6 @@
 
 class SNES_PPU {
 
-}
+};
 
 #endif //_SPC700_H

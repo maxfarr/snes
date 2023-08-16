@@ -5,6 +5,7 @@
 
 #include <array>
 #include <string>
+#include <iostream>
 
 // loROM implementation for now
 // to do: turn into abstract class and implement multiple mappers
@@ -33,7 +34,7 @@ public:
 	twobyte cop_vector();
 	twobyte reset_vector();
 
-	void override_reset_vector(twobyte addr) {m_reset_vector = addr;};
+	void override_reset_vector(twobyte addr) {m_reset_vector = addr; std::cout<<"hi: "<<addr<<std::endl;};
 	
 	void openROM(std::string filename);
 private:

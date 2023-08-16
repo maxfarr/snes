@@ -1,42 +1,22 @@
 #include "common.h"
 
-#include "cpu.h"
+#include "cpu.hpp"
 class SNES_MEMORY;
-#include "ram.h"
+#include "ram.hpp"
 
 #include <stdio.h>
 #include <iostream>
 #include <iomanip>
 
-int main() {
-	// test program initializes SNES components individually
-	SNES_MEMORY* mem = new SNES_MEMORY();
-	std::cout << "reading ROM file" << std::endl;
-	mem->openROM("smw");
-	//mem->openROM("testrom_3adc");
-	//mem->openROM("testrom_sei");
-
-	//mem->openROM("testrom_lda_small_large");
-	
-#ifdef FORCE_RESET_TO_8000
-	mem->override_reset_vector(0x8000);
-#endif
-
-	std::cout << "finished reading file" << std::endl;
-
-	SNES_CPU* cpu = new SNES_CPU(mem);
-	
-	for(int i = 0; i < 10000; i++) {
-		if (!cpu->clock()) {
-			break;
-		}
-	}
-	
-	return 0;
+SNES_CPU::SNES_CPU() {
+	mem = new SNES_MEMORY();
 }
 
-SNES_CPU::SNES_CPU(SNES_MEMORY* m) {
-	mem = m;
+SNES_CPU::~SNES_CPU() {
+	//nothing yet
+}
+
+void SNES_CPU::init() {
 	status.full = 0x00;
 	e = 1;
 	status.bits.m = 1;
@@ -45,10 +25,6 @@ SNES_CPU::SNES_CPU(SNES_MEMORY* m) {
 	DBR = 0x00;
 	PC = mem->reset_vector();
 	*SH = 0x01;
-}
-
-SNES_CPU::~SNES_CPU() {
-	//nothing yet
 }
 
 bool SNES_CPU::clock() {

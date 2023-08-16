@@ -11,7 +11,7 @@
 #include <functional>
 
 class SNES_MEMORY;
-#include "ram.h"
+#include "ram.hpp"
 
 #define DLNONZERO			(*DL != 0x00)
 #define MZERO				(status.bits.m ? 0 : 1)
@@ -20,9 +20,10 @@ class SNES_MEMORY;
 
 class SNES_CPU {
 public:
-	SNES_CPU(SNES_MEMORY* m);
+	SNES_CPU();
 	~SNES_CPU();
 
+	void init();
 	bool clock();
 
 	// hardware interrupts
@@ -30,6 +31,8 @@ public:
 	void reset();
 	void irq();
 	void nmi();
+
+	SNES_MEMORY* mem;
 	
 	twobyte debugAccum() {return C;};
 	void debugPrint();
@@ -182,9 +185,6 @@ private:
 	void SR();
 	
 	void SRIY();
-	
-	// memory
-	SNES_MEMORY* mem;
 
 	// accumulator
 	twobyte C = 0x0000;

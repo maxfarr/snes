@@ -1,7 +1,7 @@
 #include "common.h"
 
-#include "ram.h"
-#include "cpu.h"
+#include "ram.hpp"
+#include "cpu.hpp"
 
 #include <cstring>
 #include <iostream>
