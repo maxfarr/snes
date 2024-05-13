@@ -18,10 +18,13 @@ int main() {
 }
 
 SNES::SNES() {
-	std::cout << "reading ROM file" << std::endl;
-	(cpu.mem)->openROM("smw");
+	std::string filename;
+	filename << std::cin;
+	std::cout << "reading ROM file: " << filename << std::endl;
+	(cpu.mem)->openROM(filename);
 	std::cout << "finished reading file" << std::endl;
 
+// todo: why is this here?
 #ifdef FORCE_RESET_TO_8000
 	(cpu.mem)->override_reset_vector(0x8000);
 #endif

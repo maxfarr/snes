@@ -4,7 +4,8 @@
 #include "common.h"
 
 class SNES_PPU {
-
+public:
+    void clock();
 };
 
 #endif //_SPC700_H

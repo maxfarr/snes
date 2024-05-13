@@ -13,6 +13,10 @@ void SNES_MEMORY::apply_mirrors(byte& bank, twobyte addr) {
 	if(addr <= 0x1FFF && (bank <= 0x3F || (bank >= 0x80 && bank <= 0xBF))) bank = 0x7E;
 	// mirror ROM
 	if(addr >= 0x8000 && bank <= 0x7D) bank += 0x80;
+	// mirror PPU registers
+	if(addr >= 0x2100 && addr <= 0x21FF && (bank <= 0x3F || (bank >= 0x80 && bank <= 0xBF))) bank = 0x00;
+	// CPU registers
+	if(addr >= 0x4200 && addr <= 0x43FF && (bank <= 0x3F || (bank >= 0x80 && bank <= 0xBF))) bank = 0x00;
 }
 
 // todo: rename "addr" either in these functions or down in the readROM functions
