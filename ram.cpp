@@ -213,7 +213,7 @@ bool SNES_MEMORY::openROM(std::string filename) {
 		count++;
 		threebyte final_addr = (bank << 16) | addr;
 		data[final_addr] = c;
-#ifdef DEBUG_MEMORY
+#ifdef DEBUG_ROM
 		std::cout << "openROM: stored byte $" << std::hex << HEX_BYTE_PRINT(c)
 		<< " at 0x" << final_addr << std::dec << std::endl;
 #endif

@@ -2,6 +2,7 @@
 #define _SPC700_H
 
 #include "common.h"
+#include "aram.hpp"
 
 class SPC700 {
 private:
@@ -11,6 +12,8 @@ private:
     byte SP;
     byte PC;
     byte PSW;
-}
+
+    SNES_ARAM ram;
+};
 
 #endif //_SPC700_H

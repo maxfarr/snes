@@ -48,7 +48,7 @@ bool SNES_CPU::clock() {
 		wrap_writes = false;
 		
 #ifdef DEBUG
-		std::cout << "-- executed opcode 0x" << std::hex << (unsigned int)opcode << std::dec << std::endl;
+		std::cout << "-- executed opcode 0x" << std::hex << (unsigned int)opcode << std::dec << " (" << (this->ops[opcode]).name << ")" << std::endl;
 		debugPrint();
 #endif
 	}

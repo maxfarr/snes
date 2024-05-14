@@ -13,6 +13,7 @@ class SNES_MEMORY;
 int main() {
     SNES s;
     s.run();
+	std::cout << "completed execution!" << std::endl;
 	
 	return 0;
 }
@@ -21,7 +22,6 @@ SNES::SNES() {
 	ready = false;
 	std::cout << "running it!" << std::endl;
 	std::string filename;
-	//filename << std::cin;
 	std::cin >> filename;
 	std::cout << "reading ROM file: " << filename << std::endl;
 	if ((cpu.mem)->openROM(filename)) {

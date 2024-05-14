@@ -4,7 +4,7 @@
 #include "common.h"
 
 #include "cpu.hpp"
-#include "ppu.hpp"
+#include "apu.hpp"
 
 class SNES {
 public:
@@ -14,7 +14,7 @@ public:
     void run();
 private:
     SNES_CPU cpu;
-    SNES_PPU ppu;
+    SNES_APU apu;
     bool ready;
 };
 
