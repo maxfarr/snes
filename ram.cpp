@@ -201,14 +201,16 @@ twobyte SNES_MEMORY::reset_vector() {
 	return m_reset_vector;
 }
 
-void SNES_MEMORY::openROM(std::string filename) {
+bool SNES_MEMORY::openROM(std::string filename) {
 	std::memset(&data, 0, SNES_RAM_SIZE);
 
 	std::ifstream f (filename);
 	char c;
 	byte bank = 0x80;
 	twobyte addr = 0x8000;
+	size_t count = 0;
 	while(f.get(c)) {
+		count++;
 		threebyte final_addr = (bank << 16) | addr;
 		data[final_addr] = c;
 #ifdef DEBUG_MEMORY
@@ -219,7 +221,7 @@ void SNES_MEMORY::openROM(std::string filename) {
 		if(addr == 0xFFFF) {
 			if(bank == 0xFF) {
 				std::cout << "openROM: ran out of memory, exiting" << std::endl;
-				return;
+				return false;
 			}
 
 			addr = 0x8000;
@@ -229,5 +231,11 @@ void SNES_MEMORY::openROM(std::string filename) {
 		}
 	}
 
+	if(count == 0) {
+		std::cout << "openROM: file empty" << std::endl;
+		return false;
+	}
+
 	m_reset_vector = read16_bank0(0xFFFC);
+	return true;
 }

@@ -15,6 +15,7 @@ public:
 private:
     SNES_CPU cpu;
     SNES_PPU ppu;
+    bool ready;
 };
 
 #endif //_SNES_H

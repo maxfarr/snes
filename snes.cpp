@@ -18,10 +18,15 @@ int main() {
 }
 
 SNES::SNES() {
+	ready = false;
+	std::cout << "running it!" << std::endl;
 	std::string filename;
-	filename << std::cin;
+	//filename << std::cin;
+	std::cin >> filename;
 	std::cout << "reading ROM file: " << filename << std::endl;
-	(cpu.mem)->openROM(filename);
+	if ((cpu.mem)->openROM(filename)) {
+		ready = true;
+	}
 	std::cout << "finished reading file" << std::endl;
 
 // todo: why is this here?
@@ -31,6 +36,7 @@ SNES::SNES() {
 }
 
 void SNES::run() {
+	if(!ready) return;
     cpu.init();
 
     for(int i = 0; i < 10000; i++) {

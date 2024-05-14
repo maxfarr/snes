@@ -36,7 +36,7 @@ public:
 
 	void override_reset_vector(twobyte addr) {m_reset_vector = addr; std::cout<<"hi: "<<addr<<std::endl;};
 	
-	void openROM(std::string filename);
+	bool openROM(std::string filename);
 private:
 	void apply_mirrors(byte& bank, twobyte addr);
 
