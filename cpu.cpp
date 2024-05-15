@@ -3,13 +3,14 @@
 #include "cpu.hpp"
 class SNES_MEMORY;
 #include "ram.hpp"
+#include "cpu_apu_io.hpp"
 
 #include <stdio.h>
 #include <iostream>
 #include <iomanip>
 
-SNES_CPU::SNES_CPU() {
-	mem = new SNES_MEMORY();
+SNES_CPU::SNES_CPU(CPU_APU_IO* apu_io) {
+	mem = new SNES_MEMORY(apu_io);
 }
 
 SNES_CPU::~SNES_CPU() {

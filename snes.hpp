@@ -5,6 +5,7 @@
 
 #include "cpu.hpp"
 #include "apu.hpp"
+#include "cpu_apu_io.hpp"
 
 class SNES {
 public:
@@ -13,8 +14,10 @@ public:
 
     void run();
 private:
+    CPU_APU_IO cpu_apu_io;
     SNES_CPU cpu;
     SNES_APU apu;
+    
     bool ready;
 };
 

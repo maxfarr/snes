@@ -20,7 +20,7 @@ class SNES_MEMORY;
 
 class SNES_CPU {
 public:
-	SNES_CPU();
+	SNES_CPU(CPU_APU_IO* apu_io);
 	~SNES_CPU();
 
 	void init();

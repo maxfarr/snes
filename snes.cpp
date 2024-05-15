@@ -18,7 +18,7 @@ int main() {
 	return 0;
 }
 
-SNES::SNES() {
+SNES::SNES() : cpu(&cpu_apu_io), apu(&cpu_apu_io) {
 	ready = false;
 	std::cout << "running it!" << std::endl;
 	std::string filename;

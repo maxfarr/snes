@@ -2,6 +2,7 @@
 #define _RAM_H
 
 #include "common.h"
+#include "cpu_apu_io.hpp"
 
 #include <array>
 #include <string>
@@ -11,6 +12,8 @@
 // to do: turn into abstract class and implement multiple mappers
 class SNES_MEMORY {
 public:
+	SNES_MEMORY(CPU_APU_IO* apu_io) : apu_io(apu_io) {};
+
 	byte read8(byte bank, twobyte addr);
 	byte read8(threebyte addr);
 	byte read8_bank0(twobyte addr);
@@ -38,6 +41,7 @@ public:
 	
 	bool openROM(std::string filename);
 private:
+	CPU_APU_IO* apu_io;
 	void apply_mirrors(byte& bank, twobyte addr);
 
 	std::array<byte, SNES_RAM_SIZE> data;
