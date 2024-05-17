@@ -1,4 +1,7 @@
 #include <stdint.h>
+#include <string>
+#include <functional>
+
 #define HEX_BYTE_PRINT(x)   std::setw(2) << std::setfill('0') << (unsigned int)(0xFF & x)
 #define bind_fn(f)			(std::bind(&SNES_CPU::f, this))
 #define getBit(value, k)	(((value) >> k) & 1)

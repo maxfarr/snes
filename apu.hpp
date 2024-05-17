@@ -10,6 +10,7 @@
 class SNES_APU {
 public:
     SNES_APU(CPU_APU_IO* cpu_io);
+    bool clock();
 private:
     CPU_APU_IO* cpu_io;
     SPC700 cpu;
