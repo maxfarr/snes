@@ -2,7 +2,6 @@
 #define _CPU_APU_IO_H
 
 #include "common.h"
-#include <iostream>
 
 class CPU_APU_IO {
 public:

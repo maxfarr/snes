@@ -1,11 +1,10 @@
 #include "common.h"
 
-class SNES_CPU;
 #include "cpu.hpp"
-class SNES_MEMORY;
 #include "ram.hpp"
 #include "snes.hpp"
 
+#include <memory>
 #include <stdio.h>
 #include <iostream>
 #include <iomanip>
@@ -18,29 +17,27 @@ int main() {
 	return 0;
 }
 
-SNES::SNES() : cpu(&cpu_apu_io), apu(&cpu_apu_io) {
+SNES::SNES() {
+	apu = std::make_unique<SNES_APU>(&cpu_apu_io);
+	mem = std::make_unique<SNES_MEMORY>(&cpu_apu_io);
+	cpu = std::make_unique<SNES_CPU>(mem.get());
 	ready = false;
 	std::cout << "running it!" << std::endl;
 	std::string filename;
 	std::cin >> filename;
 	std::cout << "reading ROM file: " << filename << std::endl;
-	if ((cpu.mem)->openROM(filename)) {
+	if (mem->openROM(filename)) {
 		ready = true;
 	}
 	std::cout << "finished reading file" << std::endl;
-
-// todo: why is this here?
-#ifdef FORCE_RESET_TO_8000
-	(cpu.mem)->override_reset_vector(0x8000);
-#endif
 }
 
 void SNES::run() {
 	if(!ready) return;
-    cpu.init();
+    cpu->init();
 
     for(int i = 0; i < 10000; i++) {
-		if (!cpu.clock()) {
+		if (!cpu->clock()) {
 			break;
 		}
 	}

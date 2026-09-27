@@ -1,0 +1,5 @@
+snes
+cpu
+
+*.o
+*.gch

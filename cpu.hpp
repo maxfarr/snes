@@ -2,6 +2,7 @@
 #define _CPU_H
 
 #include "common.h"
+#include "cpu_bus.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -20,7 +21,7 @@ class SNES_MEMORY;
 
 class SNES_CPU {
 public:
-	SNES_CPU(CPU_APU_IO* apu_io);
+	SNES_CPU(CPU_BUS* bus);
 	~SNES_CPU();
 
 	void init();
@@ -32,7 +33,7 @@ public:
 	void irq();
 	void nmi();
 
-	SNES_MEMORY* mem;
+	CPU_BUS* bus;
 	
 	twobyte debugAccum() {return C;};
 	void debugPrint();
@@ -186,6 +187,29 @@ private:
 	
 	void SRIY();
 
+	// bus
+	byte read8(byte bank, twobyte addr);
+	byte read8(threebyte addr);
+	byte read8_bank0(twobyte addr);
+
+	twobyte read16(byte bank, twobyte addr);
+	twobyte read16(threebyte addr);
+	twobyte read16_bank0(twobyte addr);
+
+	threebyte read24(byte bank, twobyte addr);
+	threebyte read24(threebyte addr);
+	threebyte read24_bank0(twobyte addr);
+	
+	byte readROM8();
+	twobyte readROM16();
+	threebyte readROM24();
+	
+	void write8(byte bank, twobyte addr, byte entry);
+	void write16(byte bank, twobyte addr, twobyte entry, bool wrap = false);
+
+	twobyte brk_vector();
+	twobyte cop_vector();
+
 	// accumulator
 	twobyte C = 0x0000;
 	//byte* B = (byte*)&C;
@@ -244,16 +268,16 @@ private:
 	// flags
 	union {
 		struct {
-			char c : 1;
-			char z : 1;
-			char i : 1;
-			char d : 1;
-			char x : 1;
-			char m : 1;
-			char v : 1;
-			char n : 1;
+			uint8_t c : 1;
+			uint8_t z : 1;
+			uint8_t i : 1;
+			uint8_t d : 1;
+			uint8_t x : 1;
+			uint8_t m : 1;
+			uint8_t v : 1;
+			uint8_t n : 1;
 		} bits;
-		char full;
+		uint8_t full;
 	} status;
 
 	bool e;

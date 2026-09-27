@@ -6,6 +6,9 @@
 #include "cpu.hpp"
 #include "apu.hpp"
 #include "cpu_apu_io.hpp"
+#include "ram.hpp"
+
+#include <memory>
 
 class SNES {
 public:
@@ -15,8 +18,9 @@ public:
     void run();
 private:
     CPU_APU_IO cpu_apu_io;
-    SNES_CPU cpu;
-    SNES_APU apu;
+    std::unique_ptr<SNES_CPU> cpu;
+    std::unique_ptr<SNES_APU> apu;
+    std::unique_ptr<SNES_MEMORY> mem;
     
     bool ready;
 };
