@@ -3,3 +3,4 @@ cpu
 
 *.o
 *.gch
+cputest

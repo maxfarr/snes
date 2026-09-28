@@ -7,8 +7,7 @@
 #define getBit(value, k)	(((value) >> k) & 1)
 #define SNES_RAM_SIZE       1024 * 64 * 256
 #define SNES_ARAM_SIZE      1024 * 64
-#define DEBUG
-#define DEBUG_MEMORY
+// DEBUG and DEBUG_MEMORY are set by the Makefile (DEBUG_FLAGS)
 //#define DEBUG_ROM
 //#define FORCE_RESET_TO_8000
 typedef uint32_t threebyte;
