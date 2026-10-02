@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall
+CXXFLAGS = -std=c++20 -Wall
 
 # Trace output for the emulator build: DEBUG dumps registers after every
 # instruction, DEBUG_MEMORY logs every memory access. Clear with `make DEBUG_FLAGS=`.

@@ -16,7 +16,7 @@ private:
     byte X;
     byte Y;
     byte SP;
-    byte PC;
+    twobyte PC;
     byte PSW;
 
     //

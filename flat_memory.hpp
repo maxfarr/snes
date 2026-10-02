@@ -4,7 +4,7 @@
 #include "common.h"
 #include "cpu_bus.hpp"
 
-#include <array>
+#include <unordered_map>
 
 class FLAT_MEMORY : public CPU_BUS {
 public:
@@ -13,8 +13,11 @@ public:
 
     ~FLAT_MEMORY() override = default;
 
+    void clear() {
+        data.clear();
+    }
 private:
-    std::array<byte, SNES_RAM_SIZE> data;
+    std::unordered_map<threebyte, byte> data;
 };
 
 #endif // _FLAT_MEMORY_H

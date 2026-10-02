@@ -4,3 +4,6 @@ cpu
 *.o
 *.gch
 cputest
+
+# test results
+results*.txt
