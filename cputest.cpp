@@ -69,6 +69,7 @@ int main() {
                 mem->write(addr, value);
             }
 
+            cpu->e = init["e"].get<int>() != 0;
             cpu->PC = init["pc"];
             cpu->S = init["s"];
             cpu->setP(init["p"]);
@@ -78,7 +79,7 @@ int main() {
             cpu->DBR = init["dbr"];
             cpu->D = init["d"];
             cpu->K = init["pbr"];
-            cpu->e = init["e"].get<int>() != 0;
+            if (cpu->e) cpu->setE(true);
 
             try {
                 cpu->executeNextCommand();

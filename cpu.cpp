@@ -69,7 +69,6 @@ byte SNES_CPU::executeNextCommand() {
 	(this->ops[opcode]).mode();
 	// execute op
 	(this->ops[opcode]).op();
-	if (e) *SH = 0x01;
 	
 	byte cycles = (this->ops[opcode].cycleCount)();
 	

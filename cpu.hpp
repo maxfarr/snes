@@ -456,8 +456,8 @@ private:
 		{0x53, {"EOR", bind_fn(EOR), bind_fn(SRIY), [this]() -> byte {return 7 + MZERO;}}},
 		// inc, inx, iny
 		{0x1A, {"INC", bind_fn(INCA), bind_fn(IMP), []() -> byte {return 2;}}},
-		{0xEE, {"INC", bind_fn(INC), bind_fn(DP), [this]() -> byte {return 5 + DLNONZERO + (2 * MZERO);}}},
-		{0xE6, {"INC", bind_fn(INC), bind_fn(ABS), [this]() -> byte {return 6 + (2 * MZERO);}}},
+		{0xEE, {"INC", bind_fn(INC), bind_fn(ABS), [this]() -> byte {return 5 + DLNONZERO + (2 * MZERO);}}},
+		{0xE6, {"INC", bind_fn(INC), bind_fn(DP), [this]() -> byte {return 6 + (2 * MZERO);}}},
 		{0xFE, {"INC", bind_fn(INC), bind_fn(ABSX), [this]() -> byte {return 7 + (2 * MZERO);}}},
 		{0xF6, {"INC", bind_fn(INC), bind_fn(DPX), [this]() -> byte {return 6 + DLNONZERO + (2 * MZERO);}}},
 		{0xE8, {"INC", bind_fn(INX), bind_fn(IMP), []() -> byte {return 2;}}},
