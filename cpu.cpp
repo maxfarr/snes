@@ -69,7 +69,9 @@ byte SNES_CPU::executeNextCommand() {
 	(this->ops[opcode]).mode();
 	// execute op
 	(this->ops[opcode]).op();
-	
+
+	if (e) *SH = 0x01; // global emulation mode rule: S stays in page 1 between instructions
+
 	byte cycles = (this->ops[opcode].cycleCount)();
 	
 #ifdef DEBUG
@@ -118,24 +120,35 @@ void SNES_CPU::incS() {
 }
 
 void SNES_CPU::push_stack_threebyte(threebyte value) {
-	write8(0x00, S, value >> 16);
-	decS();
-	write8(0x00, S, (value >> 8) & 0xFF);
-	decS();
-	write8(0x00, S, value & 0xFF);
-	decS();
+	push_stack_byte(value >> 16);
+	push_stack_byte((value >> 8) & 0xFF);
+	push_stack_byte(value & 0xFF);
+}
+
+void SNES_CPU::push_stack_threebyte_nowrap(threebyte value) {
+	push_stack_byte_nowrap(value >> 16);
+	push_stack_byte_nowrap((value >> 8) & 0xFF);
+	push_stack_byte_nowrap(value & 0xFF);
 }
 
 void SNES_CPU::push_stack_twobyte(twobyte value) {
-	write8(0x00, S, value >> 8);
-	decS();
-	write8(0x00, S, value & 0xFF);
-	decS();
+	push_stack_byte(value >> 8);
+	push_stack_byte(value & 0xFF);
+}
+
+void SNES_CPU::push_stack_twobyte_nowrap(twobyte value) {
+	push_stack_byte_nowrap(value >> 8);
+	push_stack_byte_nowrap(value & 0xFF);
 }
 
 void SNES_CPU::push_stack_byte(byte value) {
 	write8(0x00, S, value);
 	decS();
+}
+
+void SNES_CPU::push_stack_byte_nowrap(byte value) {
+	write8(0x00, S, value);
+	S--;
 }
 
 threebyte SNES_CPU::pop_stack_threebyte() {
@@ -145,14 +158,32 @@ threebyte SNES_CPU::pop_stack_threebyte() {
 	return (hi << 16) | (md << 8) | lo;
 }
 
+threebyte SNES_CPU::pop_stack_threebyte_nowrap() {
+	byte lo = pop_stack_byte_nowrap();
+	byte md = pop_stack_byte_nowrap();
+	byte hi = pop_stack_byte_nowrap();
+	return (hi << 16) | (md << 8) | lo;
+}
+
 twobyte SNES_CPU::pop_stack_twobyte() {
 	byte lo = pop_stack_byte();
 	byte hi = pop_stack_byte();
 	return (hi << 8) | lo;
 }
 
+twobyte SNES_CPU::pop_stack_twobyte_nowrap() {
+	byte lo = pop_stack_byte_nowrap();
+	byte hi = pop_stack_byte_nowrap();
+	return (hi << 8) | lo;
+}
+
 byte SNES_CPU::pop_stack_byte() {
 	incS();
+	return read8(S);
+}
+
+byte SNES_CPU::pop_stack_byte_nowrap() {
+	S++;
 	return read8(S);
 }
 
@@ -162,8 +193,8 @@ byte SNES_CPU::pop_stack_byte() {
 
 void SNES_CPU::ADC() {
 	twobyte data = status.bits.m ? readEA8() : readEA16();
-	byte data_lo = (byte)data;              // replaces *fetched_lo
-	byte data_hi = (byte)(data >> 8);       // replaces *fetched_hi
+	byte data_lo = (byte)data;
+	byte data_hi = (byte)(data >> 8);
 	
 	if(status.bits.d) {
 		byte lower_nybble_sum = (*A & 0x0F) + (data_lo & 0x0F) + status.bits.c;
@@ -175,7 +206,12 @@ void SNES_CPU::ADC() {
 			upper_nybble_sum++;
 		}
 
+		status.bits.c = 0;
+
 		if(status.bits.m) {
+			byte r = (upper_nybble_sum << 4) | lower_nybble_sum;
+			status.bits.v = getBit(~(*A ^ data_lo) & (*A ^ r), 7);
+
 			if(upper_nybble_sum > 0x09) {
 				upper_nybble_sum += 0x06;
 				upper_nybble_sum &= 0x0F;
@@ -203,13 +239,16 @@ void SNES_CPU::ADC() {
 				upper_nybble_sum_hi++;
 			}
 
+			twobyte r = (upper_nybble_sum_hi << 12) | (lower_nybble_sum_hi << 8) | (upper_nybble_sum << 4) | lower_nybble_sum;
+			status.bits.v = getBit(~(C ^ data) & (C ^ r), 15);
+
 			if(upper_nybble_sum_hi > 0x09) {
 				upper_nybble_sum_hi += 0x06;
 				upper_nybble_sum_hi &= 0x0F;
 				status.bits.c = 1;
 			}
 
-			C =  (twobyte)(upper_nybble_sum_hi << 12) | (lower_nybble_sum_hi << 8) | (upper_nybble_sum << 4) | lower_nybble_sum;
+			C = (twobyte)(upper_nybble_sum_hi << 12) | (lower_nybble_sum_hi << 8) | (upper_nybble_sum << 4) | lower_nybble_sum;
 		
 			status.bits.n = getBit(C, 15);
 			status.bits.z = (C == 0x0000);
@@ -754,10 +793,16 @@ void SNES_CPU::JSR() {
 	PC = (twobyte)ea;
 }
 
+void SNES_CPU::JSRIX() {
+	PC--;
+	push_stack_twobyte_nowrap(PC);
+	PC = (twobyte)ea;
+}
+
 void SNES_CPU::JSL() {
 	PC--;
-	push_stack_byte(K);
-	push_stack_twobyte(PC);
+	push_stack_byte_nowrap(K);
+	push_stack_twobyte_nowrap(PC);
 	K = ea >> 16;
 	PC = (twobyte)ea;
 }
@@ -859,16 +904,16 @@ void SNES_CPU::ORA() {
 }
 
 void SNES_CPU::PEA() {
-	push_stack_twobyte(readEA16());
+	push_stack_twobyte_nowrap(readEA16());
 }
 
 void SNES_CPU::PEI() {
-	push_stack_twobyte(readEA16());
+	push_stack_twobyte_nowrap(readEA16());
 }
 
 void SNES_CPU::PER() {
 	twobyte offset = readEA16();
-	push_stack_twobyte(PC + offset);
+	push_stack_twobyte_nowrap(PC + offset);
 }
 
 // push
@@ -886,7 +931,7 @@ void SNES_CPU::PHB() {
 }
 
 void SNES_CPU::PHD() {
-	push_stack_twobyte(D);
+	push_stack_twobyte_nowrap(D);
 }
 
 void SNES_CPU::PHK() {
@@ -930,14 +975,14 @@ void SNES_CPU::PLA() {
 }
 
 void SNES_CPU::PLB() {
-	DBR = pop_stack_byte();
+	DBR = pop_stack_byte_nowrap();
 
 	status.bits.n = getBit(DBR, 7);
 	status.bits.z = (DBR == 0x00);
 }
 
 void SNES_CPU::PLD() {
-	D = pop_stack_twobyte();
+	D = pop_stack_twobyte_nowrap();
 
 	status.bits.n = getBit(D, 15);
 	status.bits.z = (D == 0x0000);
@@ -1083,89 +1128,95 @@ void SNES_CPU::RTS() {
 }
 
 void SNES_CPU::RTL() {
-	PC = pop_stack_twobyte();
+	PC = pop_stack_twobyte_nowrap();
 	PC++;
 
-	K = pop_stack_byte();
+	K = pop_stack_byte_nowrap();
 }
 
 void SNES_CPU::SBC() {
 	twobyte data = status.bits.m ? readEA8() : readEA16();
-	byte data_lo = (byte)data;
-	byte data_hi = data >> 8;
-
+	twobyte inv = (twobyte)~data;
+	byte inv_hi = (byte)(inv >> 8);
+	byte inv_lo = (byte)inv;
+	
 	if(status.bits.d) {
-		byte lower_nybble_diff = (*A & 0x0F) - (data_lo & 0x0F) - (status.bits.c ? 0 : 1);
-		byte upper_nybble_diff = (*A >> 4) - (data_lo >> 4);
+		byte lower_nybble_sum = (*A & 0x0F) + (inv_lo & 0x0F) + status.bits.c;
+		byte upper_nybble_sum = (*A >> 4) + (inv_lo >> 4);
 
-		if(lower_nybble_diff > 0x09) {
-			lower_nybble_diff -= 0x06;
-			lower_nybble_diff &= 0x0F;
-			upper_nybble_diff--;
-		}
+		bool carry = lower_nybble_sum > 0x0F;
+		if (!carry) lower_nybble_sum -= 0x06;
+		lower_nybble_sum &= 0x0F;
+		upper_nybble_sum += carry;
+
+		status.bits.c = 0;
 
 		if(status.bits.m) {
-			if(upper_nybble_diff > 0x09) {
-				upper_nybble_diff -= 0x06;
-				upper_nybble_diff &= 0x0F;
-				status.bits.c = 0;
+			byte r = (upper_nybble_sum << 4) | lower_nybble_sum;
+			status.bits.v = getBit(~(*A ^ inv_lo) & (*A ^ r), 7);
+
+			if(upper_nybble_sum <= 0x0F) {
+				upper_nybble_sum -= 0x06;
+				upper_nybble_sum &= 0x0F;
+			} else {
+				status.bits.c = 1;
 			}
 
-			*A = (upper_nybble_diff << 4) | lower_nybble_diff;
+			*A = (upper_nybble_sum << 4) | lower_nybble_sum;
 			
 			status.bits.n = getBit(*A, 7);
 			status.bits.z = (*A == 0x00);
 			return;
 		} else {
-			byte lower_nybble_diff_hi = (*B & 0x0F) - (data_hi & 0x0F);
-			byte upper_nybble_diff_hi = (*B >> 4) - (data_hi >> 4);
+			byte lower_nybble_sum_hi = (*B & 0x0F) + (inv_hi & 0x0F);
+			byte upper_nybble_sum_hi = (*B >> 4) + (inv_hi >> 4);
 
-			if(upper_nybble_diff > 0x09) {
-				upper_nybble_diff -= 0x06;
-				upper_nybble_diff &= 0x0F;
-				lower_nybble_diff_hi--;
+			carry = upper_nybble_sum > 0x0F;
+			if (!carry) upper_nybble_sum -= 0x06;
+			upper_nybble_sum &= 0x0F;
+			lower_nybble_sum_hi += carry;
+
+			carry = lower_nybble_sum_hi > 0x0F;
+			if (!carry) lower_nybble_sum_hi -= 0x06;
+			lower_nybble_sum_hi &= 0x0F;
+			upper_nybble_sum_hi += carry;
+
+			twobyte r = (upper_nybble_sum_hi << 12) | (lower_nybble_sum_hi << 8) | (upper_nybble_sum << 4) | lower_nybble_sum;
+			status.bits.v = getBit(~(C ^ inv) & (C ^ r), 15);
+
+			if(upper_nybble_sum_hi <= 0x0F) {
+				upper_nybble_sum_hi -= 0x06;
+				upper_nybble_sum_hi &= 0x0F;
+			} else {
+				status.bits.c = 1;
 			}
 
-			if(lower_nybble_diff_hi > 0x09) {
-				lower_nybble_diff_hi -= 0x06;
-				lower_nybble_diff_hi &= 0x0F;
-				upper_nybble_diff_hi--;
-			}
-
-			if(upper_nybble_diff_hi > 0x09) {
-				upper_nybble_diff_hi -= 0x06;
-				upper_nybble_diff_hi &= 0x0F;
-				status.bits.c = 0;
-			}
-
-			C =  (twobyte)(upper_nybble_diff_hi << 12) | (lower_nybble_diff_hi << 8) | (upper_nybble_diff << 4) | lower_nybble_diff;
+			C = (twobyte)(upper_nybble_sum_hi << 12) | (lower_nybble_sum_hi << 8) | (upper_nybble_sum << 4) | lower_nybble_sum;
 		
 			status.bits.n = getBit(C, 15);
-			status.bits.z = (C = 0x0000);
+			status.bits.z = (C == 0x0000);
 			return;
 		}
 	} else {
 		if(status.bits.m) {
-			bool final_c = (*A >= data_lo);
-			bool high_bit_pre_sbc = getBit(*A, 7);
+			bool final_c = ((twobyte)*A + (inv_lo + status.bits.c) > (twobyte)0xFF);
+			byte a_before = *A;
 			
-			*A -= data_lo;
-			*A -= (status.bits.c ? 0 : 1);
+			*A += inv_lo;
+			*A += status.bits.c;
 			
-			status.bits.v = ((high_bit_pre_sbc != getBit(data_lo + (status.bits.c ? 0 : 1), 7))
-							&& (high_bit_pre_sbc != getBit(*A, 7)));
+			status.bits.v = getBit(~(a_before ^ inv_lo) & (a_before ^ *A), 7);
 			status.bits.c = final_c;
 			status.bits.n = getBit(*A, 7);
 			status.bits.z = (*A == 0x00);
 		} else {
-			bool final_c = (C >= data);
-			bool high_bit_pre_sbc = getBit(C, 15);
+			bool final_c = ((threebyte)C + (inv + status.bits.c) > (threebyte)0xFFFF);
+			twobyte c_before = C;
 			
-			C -= data;
-			C -= (status.bits.c ? 0 : 1);
+			C += inv;
+			C += status.bits.c;
 			
-			status.bits.v = ((high_bit_pre_sbc != getBit(data + (status.bits.c ? 0 : 1), 15))
-							&& (high_bit_pre_sbc != getBit(C, 15)));
+			status.bits.v = getBit(~(c_before ^ inv) & (c_before ^ C), 15);
 			status.bits.c = final_c;
 			status.bits.n = getBit(C, 15);
 			status.bits.z = (C == 0x0000);
@@ -1260,9 +1311,7 @@ void SNES_CPU::TCD() {
 void SNES_CPU::TCS() {
 	S = C;
 
-	if (e) {
-		*SH = 0x01;
-	}
+	if (e) *SH = 0x01; // for readability; always enforced after op
 }
 
 void SNES_CPU::TDC() {
@@ -1310,9 +1359,7 @@ void SNES_CPU::TXA() {
 void SNES_CPU::TXS() {
 	S = X;
 
-	if (e) {
-		*SH = 0x01;
-	}
+	if (e) *SH = 0x01; // for readability; always enforced after op
 }
 
 void SNES_CPU::TXY() {

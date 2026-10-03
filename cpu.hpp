@@ -64,11 +64,17 @@ public:
 	byte* SH = SL + 1;
 
 	void push_stack_threebyte(threebyte value);
+	void push_stack_threebyte_nowrap(threebyte value);
 	void push_stack_twobyte(twobyte value);
+	void push_stack_twobyte_nowrap(twobyte value);
 	void push_stack_byte(byte value);
+	void push_stack_byte_nowrap(byte value);
 	threebyte pop_stack_threebyte();
+	threebyte pop_stack_threebyte_nowrap();
 	twobyte pop_stack_twobyte();
+	twobyte pop_stack_twobyte_nowrap();
 	byte pop_stack_byte();
+	byte pop_stack_byte_nowrap();
 	
 	// X
 	twobyte X = 0x0000;
@@ -172,13 +178,15 @@ private:
 	void JMP();
 	void JML();
 	void JSR();
+	void JSRIX(); // special case for new op JSR/ABSIX, which will not page wrap stack
 	void JSL();
 
 	void LDA();
 	void LDX();
 	void LDY();
 
-	void LSR(); void LSRA();
+	void LSR();
+	void LSRA();
 
 	void MVN();
 	void MVP();
@@ -267,7 +275,9 @@ private:
 	
 	void ABSL();
 	
-	void ABSX(); void ABSY();
+	void ABSX();
+	
+	void ABSY();
 	
 	void ABSLX();
 
@@ -443,7 +453,7 @@ private:
 		// eor
 		{0x49, {"EOR", bind_fn(EOR), bind_fn(IMM), [this]() -> byte {return 2 + MZERO;}}},
 		{0x4D, {"EOR", bind_fn(EOR), bind_fn(ABS), [this]() -> byte {return 4 + MZERO;}}},
-		{0x4F, {"EOR", bind_fn(EOR), bind_fn(ABSL), [this]() -> byte {return 5 + MZERO;}}},
+	{0x4F, {"EOR", bind_fn(EOR), bind_fn(ABSL), [this]() -> byte {return 5 + MZERO;}}},
 		{0x45, {"EOR", bind_fn(EOR), bind_fn(DP), [this]() -> byte {return 3 + MZERO + DLNONZERO;}}},
 		{0x52, {"EOR", bind_fn(EOR), bind_fn(DPI), [this]() -> byte {return 5 + MZERO + DLNONZERO;}}},
 		{0x47, {"EOR", bind_fn(EOR), bind_fn(DPIL), [this]() -> byte {return 6 + MZERO + DLNONZERO;}}},
@@ -472,7 +482,7 @@ private:
 		{0xDC, {"JML", bind_fn(JML), bind_fn(ABSIL), []() -> byte {return 6;}}},
 		// jsr, jsl
 		{0x20, {"JSR", bind_fn(JSR), bind_fn(ABS), []() -> byte {return 6;}}},
-		{0xFC, {"JSR", bind_fn(JSR), bind_fn(ABSIX), []() -> byte {return 8;}}},
+		{0xFC, {"JSR", bind_fn(JSRIX), bind_fn(ABSIX), []() -> byte {return 8;}}},
 		{0x22, {"JSL", bind_fn(JSL), bind_fn(ABSL), []() -> byte {return 8;}}},
 		// lda
 		{0xA9, {"LDA", bind_fn(LDA), bind_fn(IMM), [this]() -> byte {return 2 + MZERO;}}},
@@ -507,7 +517,7 @@ private:
 		{0x44, {"MVP", bind_fn(MVP), bind_fn(IMM), []() -> byte {return 7;}}},
 		// nop, wdm
 		{0xEA, {"NOP", bind_fn(NOP), bind_fn(IMP), []() -> byte {return 2;}}},
-		{0xEA, {"WDM", bind_fn(WDM), bind_fn(IMM), []() -> byte {return 2;}}},
+		{0x42, {"WDM", bind_fn(WDM), bind_fn(IMM), []() -> byte {return 2;}}},
 		// ora
 		{0x09, {"ORA", bind_fn(ORA), bind_fn(IMM), [this]() -> byte {return 2 + MZERO;}}},
 		{0x0D, {"ORA", bind_fn(ORA), bind_fn(ABS), [this]() -> byte {return 4 + MZERO;}}},
