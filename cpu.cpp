@@ -492,7 +492,7 @@ void SNES_CPU::BRK() {
 void SNES_CPU::COP() {
 	readEA8(); // advance PC
 
-	push_stack_byte(K);
+	if (!e) push_stack_byte(K);
 	push_stack_twobyte(PC);
 	push_stack_byte(getP());
 
@@ -1415,6 +1415,10 @@ void SNES_CPU::XCE() {
 	setE(c);
 }
 
+void SNES_CPU::WDM() {
+	readEA8();
+}
+
 //
 // addressing modes
 //
@@ -1457,10 +1461,7 @@ void SNES_CPU::DPI() {
 // Direct Page Indirect Long
 void SNES_CPU::DPIL() {
 	byte ll = fetch8();
-	byte lo = read8(dpAddr(ll));
-	byte md = read8(dpAddr(ll + 1));
-	byte hi = read8(dpAddr(ll + 2));
-	ea = (hi << 16) | (md << 8) | lo;
+	ea = read24_bank0(D + ll);
 }
 
 // Direct Page Indirect, X
@@ -1484,10 +1485,8 @@ void SNES_CPU::DPINY() {
 // Direct Page Indirect Long iNdexed, Y
 void SNES_CPU::DPILNY() {
 	byte ll = fetch8();
-	byte lo = read8(dpAddr(ll));
-	byte md = read8(dpAddr(ll + 1));
-	byte hi = read8(dpAddr(ll + 2));
-	ea = (((hi << 16) | (md << 8) | lo) + Y) & 0xFFFFFF;
+	threebyte ptr = read24_bank0(D + ll);
+	ea = (ptr + Y) & 0xFFFFFF;
 }
 
 // absolute
@@ -1720,5 +1719,5 @@ twobyte SNES_CPU::brk_vector() {
 }
 
 twobyte SNES_CPU::cop_vector() {
-	return read16_bank0(0xFFE4);
+	return read16_bank0(e ? 0xFFF4 : 0xFFE4);
 }

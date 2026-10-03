@@ -229,6 +229,8 @@ private:
 
 	void WAI();
 
+	void WDM();
+
 	void XBA();
 	void XCE();
 	
@@ -503,8 +505,9 @@ private:
 		// mvn, mvp
 		{0x54, {"MVN", bind_fn(MVN), bind_fn(IMM), []() -> byte {return 7;}}},
 		{0x44, {"MVP", bind_fn(MVP), bind_fn(IMM), []() -> byte {return 7;}}},
-		// nop
+		// nop, wdm
 		{0xEA, {"NOP", bind_fn(NOP), bind_fn(IMP), []() -> byte {return 2;}}},
+		{0xEA, {"WDM", bind_fn(WDM), bind_fn(IMM), []() -> byte {return 2;}}},
 		// ora
 		{0x09, {"ORA", bind_fn(ORA), bind_fn(IMM), [this]() -> byte {return 2 + MZERO;}}},
 		{0x0D, {"ORA", bind_fn(ORA), bind_fn(ABS), [this]() -> byte {return 4 + MZERO;}}},
@@ -628,7 +631,10 @@ private:
 		{0x04, {"TSB", bind_fn(TSB), bind_fn(DP), [this]() -> byte {return 5 + (2 * MZERO) + DLNONZERO;}}},
 		// xba, xce
 		{0xEB, {"XBA", bind_fn(XBA), bind_fn(IMP), []() -> byte {return 3;}}},
-		{0xFB, {"XCE", bind_fn(XCE), bind_fn(IMP), []() -> byte {return 2;}}}
+		{0xFB, {"XCE", bind_fn(XCE), bind_fn(IMP), []() -> byte {return 2;}}},
+		// wai, stp (TODO: replace these with actual calls, stubs for now)
+		{0xCB, {"WAI", bind_fn(NOP), bind_fn(IMP), []() -> byte {return 3;}}},
+		{0xDB, {"STP", bind_fn(NOP), bind_fn(IMP), []() -> byte {return 3;}}},
 	};
 };
 

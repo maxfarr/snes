@@ -38,7 +38,7 @@ int main() {
     std::vector<fs::path> paths;
 
     for (uint16_t i = 0; i < 256; ++i) {
-        if (i == 0x54 || i == 0x44 || i == 0xcb || i == 0xdb) {
+        if (i == 0x54 || i == 0x44) {
             // todo: implement these tests
             continue;
         }
